@@ -1,1 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
 
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1">
+
+    <title>Contact Tracker</title>
+
+    <meta
+        name="theme-color"
+        content="#007AFF">
+
+    <link
+        rel="stylesheet"
+        href="style.css">
+
+</head>
+
+<body>
+
+<main>
+
+    <header class="header">
+
+        <h1>Contact Tracker</h1>
+
+        <button
+            id="logoutButton"
+            class="secondary hidden">
+
+            Log Out
+
+        </button>
+
+    </header>
+
+    <!-- LOGIN -->
+
+    <section
+        id="loginCard"
+        class="card">
+
+        <h2>Sign In</h2>
+
+        <label for="emailInput">
+
+            Email
+
+        </label>
+
+        <input
+            id="emailInput"
+            type="email"
+            autocomplete="email">
+
+        <label for="passwordInput">
+
+            Password
+
+        </label>
+
+        <input
+            id="passwordInput"
+            type="password"
+            autocomplete="current-password">
+
+        <button id="loginButton">
+
+            Sign In
+
+        </button>
+
+    </section>
+
+    <!-- MAIN APP -->
+
+    <section
+        id="appCard"
+        class="hidden">
+
+        <div class="card">
+
+            <label
+                for="typeInput">
+
+                Encounter Type
+
+            </label>
+
+            <select id="typeInput">
+
+                <option>Call</option>
+                <option>1-on-1</option>
+                <option>small group</option>
+                <option>large group</option>
+                <option>message</option>
+                <option>birthday acknowledgment</option>
+
+            </select>
+
+        </div>
+
+        <!-- Recommendation Grid -->
+
+        <section
+            class="recommendation-grid">
+
+            <div
+                class="card recommendation-card">
+
+                <h3>
+
+                    Recent
+
+                </h3>
+
+                <div id="recentList"></div>
+
+            </div>
+
+            <div
+                class="card recommendation-card">
+
+                <h3>
+
+                    Priorities
+
+                </h3>
+
+                <div id="priorityList"></div>
+
+            </div>
+
+            <div
+                class="card recommendation-card">
+
+                <h3>
+
+                    Due Soon
+
+                </h3>
+
+                <div id="dueSoonList"></div>
+
+            </div>
+
+            <div
+                class="card recommendation-card">
+
+                <h3>
+
+                    Smart Picks
+
+                </h3>
+
+                <div id="smartPickList"></div>
+
+            </div>
+
+        </section>
+
+        <!-- SEARCH -->
+
+        <section
+            class="card">
+
+            <div
+                class="search-wrapper">
+
+                <div
+                    id="searchResults"
+                    class="search-results hidden">
+
+                </div>
+
+                <input
+                    id="peopleSearch"
+                    type="search"
+                    autocomplete="off"
+                    placeholder="Search people...">
+
+            </div>
+
+            <label>
+
+                Selected
+
+            </label>
+
+            <div
+                id="selectedPeople"
+                class="selected-container">
+
+            </div>
+
+        </section>
+
+        <!-- NOTES -->
+
+        <section
+            class="card">
+
+            <label
+                for="descriptionInput">
+
+                Notes
+
+            </label>
+
+            <textarea
+                id="descriptionInput"
+                placeholder="Anything worth remembering..."></textarea>
+
+        </section>
+
+        <!-- SAVE -->
+
+        <button
+            id="saveEncounterButton">
+
+            Save Encounter
+
+        </button>
+
+    </section>
+
+    <div
+        id="message"
+        class="message hidden">
+
+    </div>
+
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script src="config.js"></script>
+
+<script src="app.js"></script>
+
+</body>
+
+</html>
