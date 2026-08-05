@@ -10,7 +10,7 @@ let supabase = null;
 let allPeople       = [];
 let selectedPeople  = [];   // array of {id, name}
 let searchHighlight = -1;
-let currentType     = '1-on-1';
+let currentType     = 'call';
 
 // ─────────────────────────────────────────────────────────────────
 //  BOOT
@@ -46,6 +46,11 @@ async function init() {
 //  AUTH
 // ─────────────────────────────────────────────────────────────────
 async function handleLogin() {
+  if (!supabase) {
+    showAuthError('Still connecting — please wait a moment and try again.');
+    return;
+  }
+
   const email    = document.getElementById('auth-email').value.trim();
   const password = document.getElementById('auth-password').value;
 
@@ -59,7 +64,16 @@ async function handleLogin() {
   btn.textContent = 'Signing in…';
   hideAuthError();
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  let signInResult;
+  try {
+    signInResult = await supabase.auth.signInWithPassword({ email, password });
+  } catch (e) {
+    showAuthError('Network error — check your connection and try again.');
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+    return;
+  }
+  const { error } = signInResult;
 
   if (error) {
     showAuthError(error.message);
@@ -323,10 +337,10 @@ async function saveEncounter() {
   renderChips();
   document.getElementById('notes-input').value = '';
   setDefaultDate();
-  // Reset type to 1-on-1
+  // Reset type to Call
   document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector('[data-type="1-on-1"]').classList.add('active');
-  currentType = '1-on-1';
+  document.querySelector('[data-type="call"]').classList.add('active');
+  currentType = 'call';
 
   btn.disabled  = false;
   btnText.textContent = 'Save Encounter';
