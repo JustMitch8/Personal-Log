@@ -28,6 +28,7 @@
         <div id="auth-error" class="auth-error hidden"></div>
         <button id="auth-btn" class="btn-primary" onclick="handleLogin()">Sign In</button>
       </div>
+      <div id="debug-log" style="margin-top:1.5rem;padding:0.8rem;background:#0a1520;border-radius:8px;font-size:0.72rem;color:#8A9BAC;font-family:monospace;white-space:pre-wrap;word-break:break-all;display:none;"></div>
     </div>
   </div>
 
@@ -38,7 +39,7 @@
     <header class="app-header">
       <span class="header-logo-mark">CT</span>
       <h1 class="header-title">Contact Tracker</h1>
-      <button class="header-sign-out" onclick="handleSignOut()" title="Sign out">↩</button>
+      <button class="header-sign-out" onclick="handleSignOut()" title="Sign out">&#x21A9;</button>
     </header>
 
     <!-- ENCOUNTER TYPE -->
@@ -50,19 +51,19 @@
         <button class="type-btn" data-type="small-group" onclick="selectType(this)">Small group</button>
         <button class="type-btn" data-type="large-group" onclick="selectType(this)">Large group</button>
         <button class="type-btn" data-type="message" onclick="selectType(this)">Message</button>
-        <button class="type-btn" data-type="birthday-acknowledgment" onclick="selectType(this)">Birthday 🎂</button>
+        <button class="type-btn" data-type="birthday-acknowledgment" onclick="selectType(this)">Birthday</button>
       </div>
     </section>
 
     <!-- SEARCH -->
     <section class="section">
       <div class="search-wrap">
-        <span class="search-icon">⌕</span>
+        <span class="search-icon">&#x2315;</span>
         <input
           class="search-input"
           id="search-input"
           type="search"
-          placeholder="Search people…"
+          placeholder="Search people..."
           autocomplete="off"
           autocorrect="off"
           spellcheck="false"

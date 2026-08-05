@@ -1,53 +1,82 @@
-// ─────────────────────────────────────────────────────────────────
-//  Contact Tracker — App Logic
-//  Single-file JS for MVP: auth, data, search, encounter saving.
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
+//  Contact Tracker -- App Logic
+// -----------------------------------------------------------------
 
-// ── Supabase client (loaded via CDN in a <script> we inject) ─────
-let supabase = null;
-
-// ── App state ────────────────────────────────────────────────────
-let allPeople       = [];
-let selectedPeople  = [];   // array of {id, name}
+let supabase       = null;
+let allPeople      = [];
+let selectedPeople = [];
 let searchHighlight = -1;
-let currentType     = 'call';
+let currentType    = 'call';
 
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
+//  DEBUG PANEL (visible on-screen, no dev tools needed)
+// -----------------------------------------------------------------
+function dbg(msg) {
+  const el = document.getElementById('debug-log');
+  if (!el) return;
+  el.style.display = 'block';
+  el.textContent += '[' + new Date().toLocaleTimeString() + '] ' + msg + '\n';
+}
+
+// -----------------------------------------------------------------
 //  BOOT
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 (function boot() {
-  // Inject Supabase CDN script, then initialise
-  const s = document.createElement('script');
-  s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
-  s.onload = init;
-  s.onerror = () => showAuthError('Could not load Supabase library. Check your connection.');
-  document.head.appendChild(s);
-})();
+  dbg('Boot started');
+  dbg('SUPABASE_URL = ' + (typeof SUPABASE_URL !== 'undefined' ? SUPABASE_URL : 'UNDEFINED'));
 
-async function init() {
-  // Guard: config must be filled in
-  if (!SUPABASE_URL || SUPABASE_URL === 'YOUR_SUPABASE_URL') {
+  if (typeof SUPABASE_URL === 'undefined' || SUPABASE_URL === 'YOUR_SUPABASE_URL') {
     showAuthError('Open config.js and fill in your Supabase URL and anon key.');
+    dbg('ERROR: config.js not filled in');
     return;
   }
 
-  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+  s.onload = function() { dbg('Supabase library loaded'); init(); };
+  s.onerror = function() {
+    dbg('ERROR: Failed to load Supabase library');
+    showAuthError('Could not load Supabase library. Check your connection.');
+  };
+  document.head.appendChild(s);
+  dbg('Supabase library request sent');
+})();
 
-  // Check for existing session
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session) {
-    await enterApp();
-  } else {
-    showScreen('auth-screen');
+async function init() {
+  dbg('init() called');
+  try {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    dbg('Supabase client created');
+  } catch(e) {
+    dbg('ERROR creating client: ' + e.message);
+    showAuthError('Failed to connect to Supabase: ' + e.message);
+    return;
+  }
+
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error) { dbg('getSession error: ' + error.message); }
+    dbg('Session check done. Has session: ' + !!session);
+    if (session) {
+      await enterApp();
+    } else {
+      showScreen('auth-screen');
+      dbg('Ready to sign in');
+    }
+  } catch(e) {
+    dbg('ERROR in getSession: ' + e.message);
   }
 }
 
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 //  AUTH
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 async function handleLogin() {
+  dbg('handleLogin() called');
+
   if (!supabase) {
-    showAuthError('Still connecting — please wait a moment and try again.');
+    showAuthError('Still connecting - please wait a moment and try again.');
+    dbg('ERROR: supabase not ready yet');
     return;
   }
 
@@ -59,29 +88,34 @@ async function handleLogin() {
     return;
   }
 
+  dbg('Attempting sign in for: ' + email);
+
   const btn = document.getElementById('auth-btn');
   btn.disabled = true;
-  btn.textContent = 'Signing in…';
+  btn.textContent = 'Signing in...';
   hideAuthError();
 
-  let signInResult;
+  let result;
   try {
-    signInResult = await supabase.auth.signInWithPassword({ email, password });
-  } catch (e) {
-    showAuthError('Network error — check your connection and try again.');
+    result = await supabase.auth.signInWithPassword({ email, password });
+  } catch(e) {
+    dbg('EXCEPTION during signIn: ' + e.message);
+    showAuthError('Network error - check your connection and try again.');
     btn.disabled = false;
     btn.textContent = 'Sign In';
     return;
   }
-  const { error } = signInResult;
 
+  const { error } = result;
   if (error) {
+    dbg('Sign in error: ' + error.message);
     showAuthError(error.message);
     btn.disabled = false;
     btn.textContent = 'Sign In';
     return;
   }
 
+  dbg('Sign in successful');
   await enterApp();
 }
 
@@ -90,7 +124,6 @@ async function handleSignOut() {
   allPeople      = [];
   selectedPeople = [];
   showScreen('auth-screen');
-  // Reset auth form
   document.getElementById('auth-email').value    = '';
   document.getElementById('auth-password').value = '';
   document.getElementById('auth-btn').disabled   = false;
@@ -106,26 +139,26 @@ function hideAuthError() {
   document.getElementById('auth-error').classList.add('hidden');
 }
 
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 //  APP ENTRY
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 async function enterApp() {
+  dbg('Entering app');
   showScreen('app-screen');
   setDefaultDate();
   await loadPeople();
 }
 
 function setDefaultDate() {
-  const d = new Date();
-  // Format as YYYY-MM-DD local
+  const d   = new Date();
   const pad = n => String(n).padStart(2, '0');
-  const val = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const val = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
   document.getElementById('date-input').value = val;
 }
 
-// ─────────────────────────────────────────────────────────────────
-//  DATA: PEOPLE
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
+//  DATA
+// -----------------------------------------------------------------
 async function loadPeople() {
   const { data, error } = await supabase
     .from('people')
@@ -136,22 +169,21 @@ async function loadPeople() {
     console.error('Failed to load people:', error.message);
     return;
   }
-
   allPeople = data || [];
 }
 
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 //  ENCOUNTER TYPE
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 function selectType(btn) {
   document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   currentType = btn.dataset.type;
 }
 
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 //  SEARCH
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 function handleSearch(query) {
   searchHighlight = -1;
   const q = query.trim().toLowerCase();
@@ -163,7 +195,6 @@ function handleSearch(query) {
     return;
   }
 
-  // Filter + rank
   const selectedIds = new Set(selectedPeople.map(p => p.id));
   const scored = allPeople
     .filter(p => !selectedIds.has(p.id))
@@ -173,18 +204,17 @@ function handleSearch(query) {
     .slice(0, 8);
 
   if (scored.length === 0) {
-    resultsEl.innerHTML = `<div class="search-no-results">No results for "${query}"</div>`;
+    resultsEl.innerHTML = '<div class="search-no-results">No results for "' + escapeHtml(query) + '"</div>';
     resultsEl.classList.remove('hidden');
     return;
   }
 
-  resultsEl.innerHTML = scored.map((r, i) =>
-    `<div class="search-result-item" data-id="${r.person.id}" data-name="${escapeHtml(r.person.name)}"
-          onclick="addPersonById('${r.person.id}', '${escapeHtml(r.person.name)}')">
-       <div class="search-result-avatar">${initials(r.person.name)}</div>
-       <span class="search-result-name">${escapeHtml(r.person.name)}</span>
-     </div>`
-  ).join('');
+  resultsEl.innerHTML = scored.map(function(r) {
+    return '<div class="search-result-item" data-id="' + r.person.id + '" data-name="' + escapeHtml(r.person.name) + '" onclick="addPersonById(\'' + r.person.id + '\', \'' + escapeHtml(r.person.name).replace(/'/g, "&#39;") + '\')">' +
+      '<div class="search-result-avatar">' + initials(r.person.name) + '</div>' +
+      '<span class="search-result-name">' + escapeHtml(r.person.name) + '</span>' +
+      '</div>';
+  }).join('');
 
   resultsEl.classList.remove('hidden');
 }
@@ -193,7 +223,7 @@ function scoreMatch(name, q) {
   const lower = name.toLowerCase();
   const words = lower.split(/\s+/);
   if (words[0].startsWith(q)) return 300;
-  if (words.slice(1).some(w => w.startsWith(q))) return 200;
+  if (words.slice(1).some(function(w) { return w.startsWith(q); })) return 200;
   if (lower.includes(q)) return 100;
   return 0;
 }
@@ -213,12 +243,10 @@ function handleSearchKey(e) {
   } else if (e.key === 'Enter') {
     e.preventDefault();
     if (searchHighlight >= 0 && items[searchHighlight]) {
-      const item = items[searchHighlight];
+      var item = items[searchHighlight];
       addPersonById(item.dataset.id, item.dataset.name);
     } else if (items.length === 1) {
-      // Auto-select the only result on Enter
-      const item = items[0];
-      addPersonById(item.dataset.id, item.dataset.name);
+      addPersonById(items[0].dataset.id, items[0].dataset.name);
     }
   } else if (e.key === 'Escape') {
     clearSearch();
@@ -226,27 +254,26 @@ function handleSearchKey(e) {
 }
 
 function updateHighlight(items) {
-  items.forEach((el, i) => {
+  items.forEach(function(el, i) {
     el.classList.toggle('highlighted', i === searchHighlight);
   });
 }
 
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 //  SELECTED PEOPLE (CHIPS)
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 function addPersonById(id, name) {
-  // Prevent duplicates
-  if (selectedPeople.find(p => p.id === id)) {
+  if (selectedPeople.find(function(p) { return p.id === id; })) {
     clearSearch();
     return;
   }
-  selectedPeople.push({ id, name });
+  selectedPeople.push({ id: id, name: name });
   clearSearch();
   renderChips();
 }
 
 function removePerson(id) {
-  selectedPeople = selectedPeople.filter(p => p.id !== id);
+  selectedPeople = selectedPeople.filter(function(p) { return p.id !== id; });
   renderChips();
 }
 
@@ -261,26 +288,25 @@ function renderChips() {
   }
 
   section.style.display = 'block';
-  wrap.innerHTML = selectedPeople.map(p =>
-    `<div class="chip">
-       ${escapeHtml(p.name)}
-       <button class="chip-remove" onclick="removePerson('${p.id}')" aria-label="Remove ${escapeHtml(p.name)}">×</button>
-     </div>`
-  ).join('');
+  wrap.innerHTML = selectedPeople.map(function(p) {
+    return '<div class="chip">' +
+      escapeHtml(p.name) +
+      '<button class="chip-remove" onclick="removePerson(\'' + p.id + '\')" aria-label="Remove ' + escapeHtml(p.name) + '">&times;</button>' +
+      '</div>';
+  }).join('');
 }
 
 function clearSearch() {
-  const input     = document.getElementById('search-input');
+  document.getElementById('search-input').value = '';
   const resultsEl = document.getElementById('search-results');
-  input.value     = '';
   resultsEl.classList.add('hidden');
   resultsEl.innerHTML = '';
   searchHighlight = -1;
 }
 
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 //  SAVE ENCOUNTER
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 async function saveEncounter() {
   if (selectedPeople.length === 0) {
     showSaveStatus('Add at least one person before saving.', 'error');
@@ -297,56 +323,52 @@ async function saveEncounter() {
 
   const btn     = document.getElementById('save-btn');
   const btnText = document.getElementById('save-btn-text');
-  btn.disabled   = true;
-  btnText.textContent = 'Saving…';
+  btn.disabled        = true;
+  btnText.textContent = 'Saving...';
 
-  // 1. Insert encounter
   const { data: encounter, error: encErr } = await supabase
     .from('encounters')
-    .insert({ date, type: currentType, description: notes || null })
+    .insert({ date: date, type: currentType, description: notes || null })
     .select('id')
     .single();
 
   if (encErr) {
-    showSaveStatus(`Error saving encounter: ${encErr.message}`, 'error');
-    btn.disabled  = false;
+    showSaveStatus('Error saving encounter: ' + encErr.message, 'error');
+    btn.disabled        = false;
     btnText.textContent = 'Save Encounter';
     return;
   }
 
-  // 2. Insert participants
-  const participants = selectedPeople.map(p => ({
-    encounterid: encounter.id,
-    personid:    p.id,
-  }));
+  const participants = selectedPeople.map(function(p) {
+    return { encounterid: encounter.id, personid: p.id };
+  });
 
   const { error: partErr } = await supabase
     .from('encounter_participants')
     .insert(participants);
 
   if (partErr) {
-    showSaveStatus(`Encounter saved but participants failed: ${partErr.message}`, 'error');
-    btn.disabled  = false;
+    showSaveStatus('Encounter saved but participants failed: ' + partErr.message, 'error');
+    btn.disabled        = false;
     btnText.textContent = 'Save Encounter';
     return;
   }
 
-  // ✅ Success — reset form
-  showSaveStatus(`✓ Encounter with ${selectedPeople.map(p => p.name).join(', ')} saved.`, 'success');
+  var names = selectedPeople.map(function(p) { return p.name; }).join(', ');
+  showSaveStatus('Saved encounter with ' + names + '.', 'success');
+
   selectedPeople = [];
   renderChips();
   document.getElementById('notes-input').value = '';
   setDefaultDate();
-  // Reset type to Call
-  document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.type-btn').forEach(function(b) { b.classList.remove('active'); });
   document.querySelector('[data-type="call"]').classList.add('active');
   currentType = 'call';
 
-  btn.disabled  = false;
+  btn.disabled        = false;
   btnText.textContent = 'Save Encounter';
 
-  // Hide success message after 4s
-  setTimeout(() => {
+  setTimeout(function() {
     document.getElementById('save-status').classList.add('hidden');
   }, 4000);
 }
@@ -354,21 +376,21 @@ async function saveEncounter() {
 function showSaveStatus(msg, type) {
   const el = document.getElementById('save-status');
   el.textContent = msg;
-  el.className = `save-status ${type}`;
+  el.className = 'save-status ' + type;
   el.classList.remove('hidden');
 }
 
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 //  SCREEN MANAGEMENT
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
   document.getElementById(id).classList.add('active');
 }
 
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 //  HELPERS
-// ─────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------
 function escapeHtml(str) {
   return String(str)
     .replace(/&/g, '&amp;')
@@ -379,10 +401,5 @@ function escapeHtml(str) {
 }
 
 function initials(name) {
-  return name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map(w => w[0] || '')
-    .join('')
-    .toUpperCase();
+  return name.split(/\s+/).slice(0, 2).map(function(w) { return w[0] || ''; }).join('').toUpperCase();
 }
