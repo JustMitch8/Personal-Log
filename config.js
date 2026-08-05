@@ -1,21 +1,8 @@
-/* ===========================================
-   Contact Tracker
-   config.js
+// ─────────────────────────────────────────────────────────────────
+//  Contact Tracker — Configuration
+//  Fill in your Supabase project URL and anon key below.
+//  Find these in: Supabase Dashboard → Project Settings → API
+// ─────────────────────────────────────────────────────────────────
 
-   Replace the two values below with your own
-   Supabase project details.
-
-   These are safe to expose in a frontend app.
-
-   NEVER put your Service Role Key here.
-   =========================================== */
-
-const CONFIG = {
-
-    supabaseUrl:
-        "https://dsuuchfjrrjprlkxzxdi.supabase.co/rest/v1/",
-
-    supabaseAnonKey:
-        "sb_publishable_RFEIObgge1RdZfUMbQ69nw_Ec0SOp5e"
-
-};
+const SUPABASE_URL  = 'YOUR_SUPABASE_URL';   // e.g. https://abcxyz.supabase.co
+const SUPABASE_ANON = 'YOUR_SUPABASE_ANON_KEY';

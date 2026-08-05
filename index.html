@@ -1,248 +1,116 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
-    <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1">
-
-    <title>Contact Tracker</title>
-
-    <meta
-        name="theme-color"
-        content="#007AFF">
-
-    <link
-        rel="stylesheet"
-        href="style.css">
-
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Contact Tracker</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
-
 <body>
 
-<main>
+  <!-- AUTH SCREEN -->
+  <div id="auth-screen" class="screen active">
+    <div class="auth-container">
+      <div class="auth-logo">
+        <div class="auth-logo-mark">CT</div>
+        <h1 class="auth-title">Contact Tracker</h1>
+        <p class="auth-sub">Your personal relationship log</p>
+      </div>
+      <div class="auth-form">
+        <div class="field-group">
+          <label class="field-label" for="auth-email">Email</label>
+          <input class="field-input" id="auth-email" type="email" autocomplete="email" placeholder="you@example.com" />
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="auth-password">Password</label>
+          <input class="field-input" id="auth-password" type="password" autocomplete="current-password" placeholder="••••••••" />
+        </div>
+        <div id="auth-error" class="auth-error hidden"></div>
+        <button id="auth-btn" class="btn-primary" onclick="handleLogin()">Sign In</button>
+      </div>
+    </div>
+  </div>
 
-    <header class="header">
+  <!-- MAIN APP SCREEN -->
+  <div id="app-screen" class="screen">
 
-        <h1>Contact Tracker</h1>
-
-        <button
-            id="logoutButton"
-            class="secondary hidden">
-
-            Log Out
-
-        </button>
-
+    <!-- HEADER -->
+    <header class="app-header">
+      <span class="header-logo-mark">CT</span>
+      <h1 class="header-title">Contact Tracker</h1>
+      <button class="header-sign-out" onclick="handleSignOut()" title="Sign out">↩</button>
     </header>
 
-    <!-- LOGIN -->
-
-    <section
-        id="loginCard"
-        class="card">
-
-        <h2>Sign In</h2>
-
-        <label for="emailInput">
-
-            Email
-
-        </label>
-
-        <input
-            id="emailInput"
-            type="email"
-            autocomplete="email">
-
-        <label for="passwordInput">
-
-            Password
-
-        </label>
-
-        <input
-            id="passwordInput"
-            type="password"
-            autocomplete="current-password">
-
-        <button id="loginButton">
-
-            Sign In
-
-        </button>
-
+    <!-- ENCOUNTER TYPE -->
+    <section class="section">
+      <div class="section-label">Encounter type</div>
+      <div class="type-switcher" id="type-switcher">
+        <button class="type-btn active" data-type="1-on-1" onclick="selectType(this)">1-on-1</button>
+        <button class="type-btn" data-type="group" onclick="selectType(this)">Group</button>
+        <button class="type-btn" data-type="call" onclick="selectType(this)">Call</button>
+        <button class="type-btn" data-type="message" onclick="selectType(this)">Message</button>
+        <button class="type-btn" data-type="other" onclick="selectType(this)">Other</button>
+      </div>
     </section>
 
-    <!-- MAIN APP -->
-
-    <section
-        id="appCard"
-        class="hidden">
-
-        <div class="card">
-
-            <label
-                for="typeInput">
-
-                Encounter Type
-
-            </label>
-
-            <select id="typeInput">
-
-                <option>Call</option>
-                <option>1-on-1</option>
-                <option>small group</option>
-                <option>large group</option>
-                <option>message</option>
-                <option>birthday acknowledgment</option>
-
-            </select>
-
-        </div>
-
-        <!-- Recommendation Grid -->
-
-        <section
-            class="recommendation-grid">
-
-            <div
-                class="card recommendation-card">
-
-                <h3>
-
-                    Recent
-
-                </h3>
-
-                <div id="recentList"></div>
-
-            </div>
-
-            <div
-                class="card recommendation-card">
-
-                <h3>
-
-                    Priorities
-
-                </h3>
-
-                <div id="priorityList"></div>
-
-            </div>
-
-            <div
-                class="card recommendation-card">
-
-                <h3>
-
-                    Due Soon
-
-                </h3>
-
-                <div id="dueSoonList"></div>
-
-            </div>
-
-            <div
-                class="card recommendation-card">
-
-                <h3>
-
-                    Smart Picks
-
-                </h3>
-
-                <div id="smartPickList"></div>
-
-            </div>
-
-        </section>
-
-        <!-- SEARCH -->
-
-        <section
-            class="card">
-
-            <div
-                class="search-wrapper">
-
-                <div
-                    id="searchResults"
-                    class="search-results hidden">
-
-                </div>
-
-                <input
-                    id="peopleSearch"
-                    type="search"
-                    autocomplete="off"
-                    placeholder="Search people...">
-
-            </div>
-
-            <label>
-
-                Selected
-
-            </label>
-
-            <div
-                id="selectedPeople"
-                class="selected-container">
-
-            </div>
-
-        </section>
-
-        <!-- NOTES -->
-
-        <section
-            class="card">
-
-            <label
-                for="descriptionInput">
-
-                Notes
-
-            </label>
-
-            <textarea
-                id="descriptionInput"
-                placeholder="Anything worth remembering..."></textarea>
-
-        </section>
-
-        <!-- SAVE -->
-
-        <button
-            id="saveEncounterButton">
-
-            Save Encounter
-
-        </button>
-
+    <!-- SEARCH -->
+    <section class="section">
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input
+          class="search-input"
+          id="search-input"
+          type="search"
+          placeholder="Search people…"
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
+          oninput="handleSearch(this.value)"
+          onkeydown="handleSearchKey(event)"
+        />
+      </div>
+      <div id="search-results" class="search-results hidden"></div>
     </section>
 
-    <div
-        id="message"
-        class="message hidden">
+    <!-- SELECTED PEOPLE -->
+    <section class="section" id="selected-section" style="display:none">
+      <div class="section-label">Selected</div>
+      <div class="chips-wrap" id="chips-wrap"></div>
+    </section>
 
-    </div>
+    <!-- NOTES -->
+    <section class="section">
+      <div class="section-label">Notes <span class="section-label-hint">(optional)</span></div>
+      <textarea
+        class="notes-input"
+        id="notes-input"
+        placeholder="Where did you meet? What did you talk about?"
+        rows="3"
+      ></textarea>
+    </section>
 
-</main>
+    <!-- DATE -->
+    <section class="section">
+      <div class="section-label">Date</div>
+      <input class="field-input" id="date-input" type="date" />
+    </section>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- SAVE BUTTON -->
+    <section class="section">
+      <button class="btn-primary btn-save" id="save-btn" onclick="saveEncounter()">
+        <span id="save-btn-text">Save Encounter</span>
+      </button>
+      <div id="save-status" class="save-status hidden"></div>
+    </section>
 
-<script src="config.js"></script>
+    <!-- SPACER -->
+    <div style="height: 2rem"></div>
 
-<script src="app.js"></script>
+  </div>
+
+  <!-- CONFIG & SCRIPTS -->
+  <script src="config.js"></script>
+  <script src="javascript/app.js"></script>
 
 </body>
-
 </html>
