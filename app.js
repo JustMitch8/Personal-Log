@@ -1,6 +1,4 @@
-// -----------------------------------------------------------------
-//  Contact Tracker -- App Logic
-// -----------------------------------------------------------------
+// Contact Tracker - App Logic
 
 let supabase       = null;
 let allPeople      = [];
@@ -8,199 +6,156 @@ let selectedPeople = [];
 let searchHighlight = -1;
 let currentType    = 'call';
 
-// -----------------------------------------------------------------
-//  DEBUG PANEL (visible on-screen, no dev tools needed)
-// -----------------------------------------------------------------
-function dbg(msg) {
-  const el = document.getElementById('debug-log');
-  if (!el) return;
-  el.style.display = 'block';
-  el.textContent += '[' + new Date().toLocaleTimeString() + '] ' + msg + '\n';
+// Status helper - writes to button AND error div so something MUST be visible
+function setStatus(msg, isError) {
+  var btn = document.getElementById('auth-btn');
+  var err = document.getElementById('auth-error');
+  if (btn) btn.textContent = msg;
+  if (err) {
+    err.textContent = msg;
+    err.classList.remove('hidden');
+    if (isError) {
+      err.style.background = 'rgba(192,57,43,0.3)';
+      err.style.color = '#ffaaaa';
+    } else {
+      err.style.background = 'rgba(212,168,85,0.2)';
+      err.style.color = '#ffe0a0';
+    }
+  }
 }
 
-// -----------------------------------------------------------------
-//  BOOT
-// -----------------------------------------------------------------
-(function boot() {
-  dbg('Boot started');
-  dbg('SUPABASE_URL = ' + (typeof SUPABASE_URL !== 'undefined' ? SUPABASE_URL : 'UNDEFINED'));
+// Boot - load Supabase library
+setStatus('Loading...');
 
-  if (typeof SUPABASE_URL === 'undefined' || SUPABASE_URL === 'YOUR_SUPABASE_URL') {
-    showAuthError('Open config.js and fill in your Supabase URL and anon key.');
-    dbg('ERROR: config.js not filled in');
-    return;
-  }
-
-  const s = document.createElement('script');
-  s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
-  s.onload = function() { dbg('Supabase library loaded'); init(); };
-  s.onerror = function() {
-    dbg('ERROR: Failed to load Supabase library');
-    showAuthError('Could not load Supabase library. Check your connection.');
-  };
-  document.head.appendChild(s);
-  dbg('Supabase library request sent');
-})();
+if (typeof SUPABASE_URL === 'undefined' || SUPABASE_URL === 'YOUR_SUPABASE_URL') {
+  setStatus('ERROR: config.js not configured. Fill in SUPABASE_URL and SUPABASE_ANON.', true);
+} else {
+  setStatus('Connecting...');
+  var script = document.createElement('script');
+  script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+  script.onload = function() { setStatus('Initialising...'); init(); };
+  script.onerror = function() { setStatus('ERROR: Could not load Supabase library. Check internet connection.', true); };
+  document.head.appendChild(script);
+}
 
 async function init() {
-  dbg('init() called');
   try {
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-    dbg('Supabase client created');
   } catch(e) {
-    dbg('ERROR creating client: ' + e.message);
-    showAuthError('Failed to connect to Supabase: ' + e.message);
+    setStatus('ERROR creating client: ' + e.message, true);
     return;
   }
 
   try {
-    const { data: { session }, error } = await supabase.auth.getSession();
-    if (error) { dbg('getSession error: ' + error.message); }
-    dbg('Session check done. Has session: ' + !!session);
-    if (session) {
+    var result = await supabase.auth.getSession();
+    if (result.error) {
+      setStatus('Session error: ' + result.error.message, true);
+      return;
+    }
+    if (result.data && result.data.session) {
       await enterApp();
     } else {
+      // Ready - restore button to normal
+      var btn = document.getElementById('auth-btn');
+      if (btn) btn.textContent = 'Sign In';
+      var err = document.getElementById('auth-error');
+      if (err) err.classList.add('hidden');
       showScreen('auth-screen');
-      dbg('Ready to sign in');
     }
   } catch(e) {
-    dbg('ERROR in getSession: ' + e.message);
+    setStatus('ERROR: ' + e.message, true);
   }
 }
 
-// -----------------------------------------------------------------
-//  AUTH
-// -----------------------------------------------------------------
 async function handleLogin() {
-  dbg('handleLogin() called');
-
   if (!supabase) {
-    showAuthError('Still connecting - please wait a moment and try again.');
-    dbg('ERROR: supabase not ready yet');
+    setStatus('Not ready yet - please wait a moment', true);
     return;
   }
 
-  const email    = document.getElementById('auth-email').value.trim();
-  const password = document.getElementById('auth-password').value;
+  var email    = document.getElementById('auth-email').value.trim();
+  var password = document.getElementById('auth-password').value;
 
   if (!email || !password) {
-    showAuthError('Please enter your email and password.');
+    setStatus('Enter your email and password', true);
     return;
   }
 
-  dbg('Attempting sign in for: ' + email);
+  setStatus('Signing in...');
 
-  const btn = document.getElementById('auth-btn');
-  btn.disabled = true;
-  btn.textContent = 'Signing in...';
-  hideAuthError();
-
-  let result;
+  var result;
   try {
-    result = await supabase.auth.signInWithPassword({ email, password });
+    result = await supabase.auth.signInWithPassword({ email: email, password: password });
   } catch(e) {
-    dbg('EXCEPTION during signIn: ' + e.message);
-    showAuthError('Network error - check your connection and try again.');
-    btn.disabled = false;
-    btn.textContent = 'Sign In';
+    setStatus('Network error: ' + e.message, true);
     return;
   }
 
-  const { error } = result;
-  if (error) {
-    dbg('Sign in error: ' + error.message);
-    showAuthError(error.message);
-    btn.disabled = false;
-    btn.textContent = 'Sign In';
+  if (result.error) {
+    setStatus('Login failed: ' + result.error.message, true);
+    var btn = document.getElementById('auth-btn');
+    if (btn) {
+      btn.textContent = 'Sign In';
+      btn.disabled = false;
+    }
     return;
   }
 
-  dbg('Sign in successful');
+  setStatus('Signed in! Loading...');
   await enterApp();
 }
 
 async function handleSignOut() {
-  await supabase.auth.signOut();
+  if (supabase) await supabase.auth.signOut();
   allPeople      = [];
   selectedPeople = [];
-  showScreen('auth-screen');
   document.getElementById('auth-email').value    = '';
   document.getElementById('auth-password').value = '';
-  document.getElementById('auth-btn').disabled   = false;
-  document.getElementById('auth-btn').textContent = 'Sign In';
+  var btn = document.getElementById('auth-btn');
+  if (btn) { btn.textContent = 'Sign In'; btn.disabled = false; }
+  var err = document.getElementById('auth-error');
+  if (err) err.classList.add('hidden');
+  showScreen('auth-screen');
 }
 
-function showAuthError(msg) {
-  const el = document.getElementById('auth-error');
-  el.textContent = msg;
-  el.classList.remove('hidden');
-}
-function hideAuthError() {
-  document.getElementById('auth-error').classList.add('hidden');
-}
-
-// -----------------------------------------------------------------
-//  APP ENTRY
-// -----------------------------------------------------------------
 async function enterApp() {
-  dbg('Entering app');
   showScreen('app-screen');
   setDefaultDate();
   await loadPeople();
 }
 
 function setDefaultDate() {
-  const d   = new Date();
-  const pad = n => String(n).padStart(2, '0');
-  const val = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
-  document.getElementById('date-input').value = val;
+  var d   = new Date();
+  var pad = function(n) { return String(n).padStart(2, '0'); };
+  var val = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+  var el  = document.getElementById('date-input');
+  if (el) el.value = val;
 }
 
-// -----------------------------------------------------------------
-//  DATA
-// -----------------------------------------------------------------
 async function loadPeople() {
-  const { data, error } = await supabase
-    .from('people')
-    .select('id, name')
-    .order('name');
-
-  if (error) {
-    console.error('Failed to load people:', error.message);
-    return;
-  }
-  allPeople = data || [];
+  var result = await supabase.from('people').select('id, name').order('name');
+  if (result.error) { console.error('loadPeople:', result.error.message); return; }
+  allPeople = result.data || [];
 }
 
-// -----------------------------------------------------------------
-//  ENCOUNTER TYPE
-// -----------------------------------------------------------------
 function selectType(btn) {
-  document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.type-btn').forEach(function(b) { b.classList.remove('active'); });
   btn.classList.add('active');
   currentType = btn.dataset.type;
 }
 
-// -----------------------------------------------------------------
-//  SEARCH
-// -----------------------------------------------------------------
 function handleSearch(query) {
   searchHighlight = -1;
-  const q = query.trim().toLowerCase();
-  const resultsEl = document.getElementById('search-results');
+  var q = query.trim().toLowerCase();
+  var resultsEl = document.getElementById('search-results');
+  if (!q) { resultsEl.classList.add('hidden'); resultsEl.innerHTML = ''; return; }
 
-  if (!q) {
-    resultsEl.classList.add('hidden');
-    resultsEl.innerHTML = '';
-    return;
-  }
-
-  const selectedIds = new Set(selectedPeople.map(p => p.id));
-  const scored = allPeople
-    .filter(p => !selectedIds.has(p.id))
-    .map(p => ({ person: p, score: scoreMatch(p.name, q) }))
-    .filter(r => r.score > 0)
-    .sort((a, b) => b.score - a.score)
+  var selectedIds = new Set(selectedPeople.map(function(p) { return p.id; }));
+  var scored = allPeople
+    .filter(function(p) { return !selectedIds.has(p.id); })
+    .map(function(p) { return { person: p, score: scoreMatch(p.name, q) }; })
+    .filter(function(r) { return r.score > 0; })
+    .sort(function(a, b) { return b.score - a.score; })
     .slice(0, 8);
 
   if (scored.length === 0) {
@@ -210,18 +165,18 @@ function handleSearch(query) {
   }
 
   resultsEl.innerHTML = scored.map(function(r) {
-    return '<div class="search-result-item" data-id="' + r.person.id + '" data-name="' + escapeHtml(r.person.name) + '" onclick="addPersonById(\'' + r.person.id + '\', \'' + escapeHtml(r.person.name).replace(/'/g, "&#39;") + '\')">' +
-      '<div class="search-result-avatar">' + initials(r.person.name) + '</div>' +
-      '<span class="search-result-name">' + escapeHtml(r.person.name) + '</span>' +
-      '</div>';
+    var id   = r.person.id;
+    var name = r.person.name;
+    return '<div class="search-result-item" onclick="addPersonById(\'' + id + '\', \'' + escapeHtml(name).replace(/'/g,'&#39;') + '\')">' +
+      '<div class="search-result-avatar">' + initials(name) + '</div>' +
+      '<span class="search-result-name">' + escapeHtml(name) + '</span></div>';
   }).join('');
-
   resultsEl.classList.remove('hidden');
 }
 
 function scoreMatch(name, q) {
-  const lower = name.toLowerCase();
-  const words = lower.split(/\s+/);
+  var lower = name.toLowerCase();
+  var words = lower.split(/\s+/);
   if (words[0].startsWith(q)) return 300;
   if (words.slice(1).some(function(w) { return w.startsWith(q); })) return 200;
   if (lower.includes(q)) return 100;
@@ -229,44 +184,27 @@ function scoreMatch(name, q) {
 }
 
 function handleSearchKey(e) {
-  const resultsEl = document.getElementById('search-results');
-  const items = resultsEl.querySelectorAll('.search-result-item');
-
+  var resultsEl = document.getElementById('search-results');
+  var items = resultsEl.querySelectorAll('.search-result-item');
   if (e.key === 'ArrowDown') {
     e.preventDefault();
     searchHighlight = Math.min(searchHighlight + 1, items.length - 1);
-    updateHighlight(items);
+    items.forEach(function(el, i) { el.classList.toggle('highlighted', i === searchHighlight); });
   } else if (e.key === 'ArrowUp') {
     e.preventDefault();
     searchHighlight = Math.max(searchHighlight - 1, 0);
-    updateHighlight(items);
+    items.forEach(function(el, i) { el.classList.toggle('highlighted', i === searchHighlight); });
   } else if (e.key === 'Enter') {
     e.preventDefault();
-    if (searchHighlight >= 0 && items[searchHighlight]) {
-      var item = items[searchHighlight];
-      addPersonById(item.dataset.id, item.dataset.name);
-    } else if (items.length === 1) {
-      addPersonById(items[0].dataset.id, items[0].dataset.name);
-    }
+    var target = searchHighlight >= 0 ? items[searchHighlight] : (items.length === 1 ? items[0] : null);
+    if (target) { var onclick = target.getAttribute('onclick'); if (onclick) eval(onclick); }
   } else if (e.key === 'Escape') {
     clearSearch();
   }
 }
 
-function updateHighlight(items) {
-  items.forEach(function(el, i) {
-    el.classList.toggle('highlighted', i === searchHighlight);
-  });
-}
-
-// -----------------------------------------------------------------
-//  SELECTED PEOPLE (CHIPS)
-// -----------------------------------------------------------------
 function addPersonById(id, name) {
-  if (selectedPeople.find(function(p) { return p.id === id; })) {
-    clearSearch();
-    return;
-  }
+  if (selectedPeople.find(function(p) { return p.id === id; })) { clearSearch(); return; }
   selectedPeople.push({ id: id, name: name });
   clearSearch();
   renderChips();
@@ -278,85 +216,64 @@ function removePerson(id) {
 }
 
 function renderChips() {
-  const wrap    = document.getElementById('chips-wrap');
-  const section = document.getElementById('selected-section');
-
+  var wrap    = document.getElementById('chips-wrap');
+  var section = document.getElementById('selected-section');
   if (selectedPeople.length === 0) {
     section.style.display = 'none';
     wrap.innerHTML = '';
     return;
   }
-
   section.style.display = 'block';
   wrap.innerHTML = selectedPeople.map(function(p) {
-    return '<div class="chip">' +
-      escapeHtml(p.name) +
-      '<button class="chip-remove" onclick="removePerson(\'' + p.id + '\')" aria-label="Remove ' + escapeHtml(p.name) + '">&times;</button>' +
-      '</div>';
+    return '<div class="chip">' + escapeHtml(p.name) +
+      '<button class="chip-remove" onclick="removePerson(\'' + p.id + '\')">&times;</button></div>';
   }).join('');
 }
 
 function clearSearch() {
-  document.getElementById('search-input').value = '';
-  const resultsEl = document.getElementById('search-results');
-  resultsEl.classList.add('hidden');
-  resultsEl.innerHTML = '';
+  var input = document.getElementById('search-input');
+  var resultsEl = document.getElementById('search-results');
+  if (input) input.value = '';
+  if (resultsEl) { resultsEl.classList.add('hidden'); resultsEl.innerHTML = ''; }
   searchHighlight = -1;
 }
 
-// -----------------------------------------------------------------
-//  SAVE ENCOUNTER
-// -----------------------------------------------------------------
 async function saveEncounter() {
-  if (selectedPeople.length === 0) {
-    showSaveStatus('Add at least one person before saving.', 'error');
-    return;
-  }
+  if (selectedPeople.length === 0) { showSaveStatus('Add at least one person first.', 'error'); return; }
+  var notes = document.getElementById('notes-input').value.trim();
+  var date  = document.getElementById('date-input').value;
+  if (!date) { showSaveStatus('Please select a date.', 'error'); return; }
 
-  const notes = document.getElementById('notes-input').value.trim();
-  const date  = document.getElementById('date-input').value;
-
-  if (!date) {
-    showSaveStatus('Please select a date.', 'error');
-    return;
-  }
-
-  const btn     = document.getElementById('save-btn');
-  const btnText = document.getElementById('save-btn-text');
-  btn.disabled        = true;
+  var btn     = document.getElementById('save-btn');
+  var btnText = document.getElementById('save-btn-text');
+  btn.disabled = true;
   btnText.textContent = 'Saving...';
 
-  const { data: encounter, error: encErr } = await supabase
+  var encResult = await supabase
     .from('encounters')
     .insert({ date: date, type: currentType, description: notes || null })
     .select('id')
     .single();
 
-  if (encErr) {
-    showSaveStatus('Error saving encounter: ' + encErr.message, 'error');
-    btn.disabled        = false;
-    btnText.textContent = 'Save Encounter';
+  if (encResult.error) {
+    showSaveStatus('Error: ' + encResult.error.message, 'error');
+    btn.disabled = false; btnText.textContent = 'Save Encounter';
     return;
   }
 
-  const participants = selectedPeople.map(function(p) {
-    return { encounterid: encounter.id, personid: p.id };
+  var participants = selectedPeople.map(function(p) {
+    return { encounterid: encResult.data.id, personid: p.id };
   });
 
-  const { error: partErr } = await supabase
-    .from('encounter_participants')
-    .insert(participants);
-
-  if (partErr) {
-    showSaveStatus('Encounter saved but participants failed: ' + partErr.message, 'error');
-    btn.disabled        = false;
-    btnText.textContent = 'Save Encounter';
+  var partResult = await supabase.from('encounter_participants').insert(participants);
+  if (partResult.error) {
+    showSaveStatus('Participants error: ' + partResult.error.message, 'error');
+    btn.disabled = false; btnText.textContent = 'Save Encounter';
     return;
   }
 
   var names = selectedPeople.map(function(p) { return p.name; }).join(', ');
   showSaveStatus('Saved encounter with ' + names + '.', 'success');
-
   selectedPeople = [];
   renderChips();
   document.getElementById('notes-input').value = '';
@@ -364,42 +281,36 @@ async function saveEncounter() {
   document.querySelectorAll('.type-btn').forEach(function(b) { b.classList.remove('active'); });
   document.querySelector('[data-type="call"]').classList.add('active');
   currentType = 'call';
-
-  btn.disabled        = false;
-  btnText.textContent = 'Save Encounter';
-
-  setTimeout(function() {
-    document.getElementById('save-status').classList.add('hidden');
-  }, 4000);
+  btn.disabled = false; btnText.textContent = 'Save Encounter';
+  setTimeout(function() { document.getElementById('save-status').classList.add('hidden'); }, 4000);
 }
 
 function showSaveStatus(msg, type) {
-  const el = document.getElementById('save-status');
+  var el = document.getElementById('save-status');
   el.textContent = msg;
   el.className = 'save-status ' + type;
   el.classList.remove('hidden');
 }
 
-// -----------------------------------------------------------------
-//  SCREEN MANAGEMENT
-// -----------------------------------------------------------------
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
-  document.getElementById(id).classList.add('active');
+  var el = document.getElementById(id);
+  if (el) el.classList.add('active');
 }
 
-// -----------------------------------------------------------------
-//  HELPERS
-// -----------------------------------------------------------------
 function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 function initials(name) {
-  return name.split(/\s+/).slice(0, 2).map(function(w) { return w[0] || ''; }).join('').toUpperCase();
+  return name.split(/\s+/).slice(0,2).map(function(w){ return w[0]||''; }).join('').toUpperCase();
 }
+
+// Attach login button listener on DOM ready
+document.addEventListener('DOMContentLoaded', function() {
+  var btn = document.getElementById('auth-btn');
+  if (btn) {
+    btn.addEventListener('click', handleLogin);
+    btn.addEventListener('touchend', function(e) { e.preventDefault(); handleLogin(); });
+  }
+});
