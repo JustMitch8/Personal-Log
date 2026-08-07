@@ -12,7 +12,7 @@
   <div id="auth-screen" class="screen active">
     <div class="auth-container">
       <div class="auth-logo">
-        <div class="auth-logo-mark">CT</div>
+        <div class="auth-logo-mark">PL</div>
         <h1 class="auth-title">Personal Log</h1>
         <p class="auth-sub">Your personal relationship log</p>
       </div>
@@ -26,93 +26,69 @@
           <input class="field-input" id="auth-password" type="password" autocomplete="current-password" placeholder="••••••••" />
         </div>
         <div id="auth-error" class="auth-error hidden"></div>
-        <button id="auth-btn" class="btn-primary" onclick="handleLogin()">Sign In</button>
+        <button id="auth-btn" class="btn-primary">Sign In</button>
       </div>
-      <div id="debug-log" style="margin-top:1.5rem;padding:0.8rem;background:#0a1520;border-radius:8px;font-size:0.72rem;color:#8A9BAC;font-family:monospace;white-space:pre-wrap;word-break:break-all;display:none;"></div>
     </div>
   </div>
 
   <!-- MAIN APP SCREEN -->
   <div id="app-screen" class="screen">
 
-    <!-- HEADER -->
     <header class="app-header">
-      <span class="header-logo-mark">CT</span>
+      <span class="header-logo-mark">PL</span>
       <h1 class="header-title">Personal Log</h1>
-      <button class="header-sign-out" onclick="handleSignOut()" title="Sign out">&#x21A9;</button>
+      <button class="header-sign-out" id="sign-out-btn" title="Sign out">&#x21A9;</button>
     </header>
 
-    <!-- ENCOUNTER TYPE -->
     <section class="section">
       <div class="section-label">Encounter type</div>
-      <div class="type-switcher" id="type-switcher">
-        <button class="type-btn active" data-type="call" onclick="selectType(this)">Call</button>
-        <button class="type-btn" data-type="1-on-1" onclick="selectType(this)">1-on-1</button>
-        <button class="type-btn" data-type="small-group" onclick="selectType(this)">Small group</button>
-        <button class="type-btn" data-type="large-group" onclick="selectType(this)">Large group</button>
-        <button class="type-btn" data-type="message" onclick="selectType(this)">Message</button>
-        <button class="type-btn" data-type="birthday-acknowledgment" onclick="selectType(this)">Birthday</button>
+      <div class="type-switcher">
+        <button class="type-btn active" data-type="call">Call</button>
+        <button class="type-btn" data-type="1-on-1">1-on-1</button>
+        <button class="type-btn" data-type="small-group">Small group</button>
+        <button class="type-btn" data-type="large-group">Large group</button>
+        <button class="type-btn" data-type="message">Message</button>
+        <button class="type-btn" data-type="birthday-acknowledgment">Birthday</button>
       </div>
     </section>
 
-    <!-- SEARCH -->
     <section class="section">
       <div class="search-wrap">
         <span class="search-icon">&#x2315;</span>
-        <input
-          class="search-input"
-          id="search-input"
-          type="search"
-          placeholder="Search people..."
-          autocomplete="off"
-          autocorrect="off"
-          spellcheck="false"
-          oninput="handleSearch(this.value)"
-          onkeydown="handleSearchKey(event)"
-        />
+        <input class="search-input" id="search-input" type="search"
+          placeholder="Search people..." autocomplete="off" autocorrect="off" spellcheck="false" />
       </div>
       <div id="search-results" class="search-results hidden"></div>
     </section>
 
-    <!-- SELECTED PEOPLE -->
     <section class="section" id="selected-section" style="display:none">
       <div class="section-label">Selected</div>
       <div class="chips-wrap" id="chips-wrap"></div>
     </section>
 
-    <!-- NOTES -->
     <section class="section">
       <div class="section-label">Notes <span class="section-label-hint">(optional)</span></div>
-      <textarea
-        class="notes-input"
-        id="notes-input"
-        placeholder="Where did you meet? What did you talk about?"
-        rows="3"
-      ></textarea>
+      <textarea class="notes-input" id="notes-input"
+        placeholder="Where did you meet? What did you talk about?" rows="3"></textarea>
     </section>
 
-    <!-- DATE -->
     <section class="section">
       <div class="section-label">Date</div>
       <input class="field-input" id="date-input" type="date" />
     </section>
 
-    <!-- SAVE BUTTON -->
     <section class="section">
-      <button class="btn-primary btn-save" id="save-btn" onclick="saveEncounter()">
+      <button class="btn-primary btn-save" id="save-btn">
         <span id="save-btn-text">Save Encounter</span>
       </button>
       <div id="save-status" class="save-status hidden"></div>
     </section>
 
-    <!-- SPACER -->
-    <div style="height: 2rem"></div>
-
+    <div style="height:2rem"></div>
   </div>
 
-  <!-- CONFIG & SCRIPTS -->
   <script src="config.js"></script>
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 
 </body>
 </html>
