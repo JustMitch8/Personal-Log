@@ -480,3 +480,76 @@ input[type="date"].field-input { color-scheme: dark; }
     box-shadow: 0 0 60px rgba(0,0,0,0.5);
   }
 }
+
+/* ─── FREQUENT FRIENDS ─────────────────────────────────────────── */
+.ff-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+
+.ff-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  background: var(--navy-mid);
+  border: 1.5px solid var(--navy-light);
+  border-radius: var(--radius-md);
+  padding: 0.6rem 0.3rem;
+  cursor: pointer;
+  transition: all var(--transition);
+  font-family: inherit;
+  text-align: center;
+}
+.ff-card:hover { border-color: var(--slate); background: var(--navy-light); }
+.ff-card.ff-selected {
+  border-color: var(--green-light);
+  background: rgba(45, 106, 79, 0.25);
+}
+
+.ff-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  background: var(--navy-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--amber);
+  flex-shrink: 0;
+}
+.ff-selected .ff-avatar {
+  background: var(--green);
+  color: var(--white);
+}
+
+.ff-name {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--cream);
+  line-height: 1.2;
+  word-break: break-word;
+  max-width: 100%;
+}
+
+.ff-badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--white);
+  border-radius: var(--radius-full);
+  padding: 0.1rem 0.4rem;
+  letter-spacing: 0.02em;
+  min-width: 24px;
+  text-align: center;
+}
+
+/* ─── VERSION TAG ──────────────────────────────────────────────── */
+.version-tag {
+  text-align: center;
+  margin-top: 1.5rem;
+  font-size: 0.7rem;
+  color: var(--slate);
+}
