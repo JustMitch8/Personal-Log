@@ -553,3 +553,200 @@ input[type="date"].field-input { color-scheme: dark; }
   font-size: 0.7rem;
   color: var(--slate);
 }
+
+/* ─── PEOPLE SCREEN ────────────────────────────────────────────── */
+.btn-icon {
+  background: none;
+  border: 1.5px solid var(--navy-light);
+  color: var(--fog);
+  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--transition);
+}
+.btn-icon:hover { border-color: var(--slate); color: var(--cream); }
+
+.btn-secondary {
+  background: none;
+  border: 1.5px solid var(--navy-light);
+  color: var(--fog);
+  border-radius: var(--radius-md);
+  padding: 0.55rem 1rem;
+  font-size: 0.88rem;
+  font-family: inherit;
+  cursor: pointer;
+  width: 100%;
+  transition: all var(--transition);
+}
+.btn-secondary:hover { border-color: var(--slate); color: var(--cream); }
+
+.btn-danger {
+  background: var(--red);
+  border: none;
+  color: var(--white);
+  border-radius: var(--radius-md);
+  padding: 0.55rem 1rem;
+  font-size: 0.88rem;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.btn-danger:hover { background: #a93226; }
+
+.people-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin: 1rem 0 0;
+  color: var(--slate);
+  font-size: 0.78rem;
+}
+.people-divider::before,
+.people-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--navy-light);
+}
+
+/* Field label row with lock icon */
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
+}
+.field-label-row .field-label { margin-bottom: 0; }
+
+.field-lock {
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: var(--fog);
+  padding: 0.1rem 0.2rem;
+  border-radius: 4px;
+  transition: color var(--transition);
+  user-select: none;
+}
+.field-lock:hover { color: var(--amber); }
+
+.field-required { color: var(--amber); }
+
+.field-hint {
+  font-size: 0.72rem;
+  color: var(--slate);
+  margin-top: 0.3rem;
+}
+
+.field-sublabel {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--fog);
+  margin-bottom: 0.3rem;
+}
+
+/* Birthday row */
+.birthday-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+.birthday-col { flex: 1; }
+.birthday-col-year { flex: 1.4; }
+
+.field-select {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%234A5B6E'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.7rem center;
+  padding-right: 2rem;
+}
+
+/* Contact interval row */
+.interval-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.interval-input { flex: 1; }
+.interval-unit {
+  color: var(--fog);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+/* Disabled field */
+.field-input:disabled,
+.field-input[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Notes existing */
+.notes-existing {
+  margin-top: 0.6rem;
+  background: var(--navy-mid);
+  border: 1px solid var(--navy-light);
+  border-radius: var(--radius-md);
+  padding: 0.7rem 0.9rem;
+}
+.notes-existing-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--slate);
+  margin-bottom: 0.4rem;
+}
+.notes-existing-text {
+  font-size: 0.85rem;
+  color: var(--fog);
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+/* People form section spacing */
+#people-form-section .field-group {
+  margin-bottom: 1rem;
+}
+#people-form-section .field-label {
+  margin-bottom: 0;
+}
+
+/* ─── MODAL ─────────────────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 1.5rem;
+}
+.modal {
+  background: var(--navy-mid);
+  border: 1.5px solid var(--navy-light);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 340px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+}
+.modal-msg {
+  font-size: 0.95rem;
+  color: var(--cream);
+  line-height: 1.5;
+  margin-bottom: 1.2rem;
+}
+.modal-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+.modal-actions .btn-secondary,
+.modal-actions .btn-danger { flex: 1; }
