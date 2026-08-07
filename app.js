@@ -32,7 +32,7 @@ if (typeof SUPABASE_URL === 'undefined' || SUPABASE_URL === 'YOUR_SUPABASE_URL')
 } else {
   setStatus('Connecting...');
   var script = document.createElement('script');
-  script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+  script.src = 'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js';
   script.onload = function() { setStatus('Initialising...'); init(); };
   script.onerror = function() { setStatus('ERROR: Could not load Supabase library. Check internet connection.', true); };
   document.head.appendChild(script);
@@ -40,7 +40,9 @@ if (typeof SUPABASE_URL === 'undefined' || SUPABASE_URL === 'YOUR_SUPABASE_URL')
 
 async function init() {
   try {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    var sb = window.supabase || window.Supabase || window.supabaseJs;
+    if (!sb || !sb.createClient) throw new Error('Supabase library did not expose createClient');
+    supabase = sb.createClient(SUPABASE_URL, SUPABASE_ANON);
   } catch(e) {
     setStatus('ERROR creating client: ' + e.message, true);
     return;
