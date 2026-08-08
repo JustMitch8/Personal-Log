@@ -750,3 +750,75 @@ input[type="date"].field-input { color-scheme: dark; }
 }
 .modal-actions .btn-secondary,
 .modal-actions .btn-danger { flex: 1; }
+
+/* ─── SEARCH RESULTS UPWARD ────────────────────────────────────── */
+.search-wrap {
+  position: relative;
+}
+/* Override: encounter search results float ABOVE the input */
+#search-results {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0; right: 0;
+  z-index: 100;
+  margin-top: 0;
+  max-height: 320px;
+  overflow-y: auto;
+}
+/* People search results still go downward (default) */
+#people-search-results {
+  margin-top: 0.5rem;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+/* ─── PERSON BADGE (inline in search results / chips) ──────────── */
+.person-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--white);
+  border-radius: var(--radius-full);
+  padding: 0.1rem 0.45rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Search result item: flex so badge sits on the right */
+.search-result-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.search-result-name {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ─── ADD NEW ROW ──────────────────────────────────────────────── */
+.search-add-new {
+  border-top: 1px solid var(--navy-light);
+  color: var(--amber) !important;
+}
+.search-add-new .search-result-name { color: var(--amber); }
+.search-avatar-add {
+  background: rgba(212,168,85,0.15) !important;
+  color: var(--amber) !important;
+  font-size: 1rem !important;
+  font-weight: 700;
+}
+
+/* ─── CHIP BADGE ───────────────────────────────────────────────── */
+.chip-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--white);
+  border-radius: var(--radius-full);
+  padding: 0.08rem 0.35rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  opacity: 0.9;
+}

@@ -3,16 +3,16 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 // ══ State ══════════════════════════════════════════════════════════
 let supabase        = null;
 let currentUserId   = null;
-let allPeople       = [];
+let allPeople       = [];   // [{id, name, contactintervaldays, daysSince}]
 let frequentFriends = [];
 let selectedPeople  = [];
 let searchHighlight = -1;
 let currentType     = 'call';
 
 // People screen state
-let editingPerson   = null;   // null = add mode, object = edit mode
-let unlockedFields  = new Set();
-let pendingUnlock   = null;   // field name awaiting modal confirm
+let editingPerson  = null;
+let unlockedFields = new Set();
+let pendingUnlock  = null;
 
 const SECTION_TITLES = [
   'Frequent Friends','Prevalent Pals','Common Companions','Back-to-Back Buddies'
@@ -31,6 +31,32 @@ function initials(name) {
 function todayISO() {
   const d=new Date(), p=n=>String(n).padStart(2,'0');
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+}
+
+// ══ Badge colour ═══════════════════════════════════════════════════
+function daysBadge(days, interval) {
+  if (days === null || days === undefined) return null;
+  const label = days === 0 ? 'today' : days === 1 ? '1d' : `${days}d`;
+  if (!interval) {
+    return { color: lerpColor('#2D6A4F','#8B5E3C', Math.min(days/90,1)), label };
+  }
+  if (days <= 0)            return { color: '#2D6A4F', label };
+  if (days <= interval)     return { color: lerpColor('#2D9E5F','#E07B2A', days/interval), label };
+  if (days <= interval*2)   return { color: lerpColor('#E07B2A','#C0392B', (days-interval)/interval), label };
+  return { color: lerpColor('#C0392B','#5C0A0A', Math.min((days-interval*2)/(interval*2),1)), label };
+}
+
+function lerpColor(h1,h2,t) {
+  const x=i=>parseInt(i,16);
+  const r1=x(h1.slice(1,3)),g1=x(h1.slice(3,5)),b1=x(h1.slice(5,7));
+  const r2=x(h2.slice(1,3)),g2=x(h2.slice(3,5)),b2=x(h2.slice(5,7));
+  return `rgb(${Math.round(r1+(r2-r1)*t)},${Math.round(g1+(g2-g1)*t)},${Math.round(b1+(b2-b1)*t)})`;
+}
+
+function badgeHTML(person) {
+  const badge = daysBadge(person.daysSince, person.contactintervaldays);
+  if (!badge) return '';
+  return `<span class="person-badge" style="background:${badge.color}">${badge.label}</span>`;
 }
 
 // ══ Screen management ══════════════════════════════════════════════
@@ -53,7 +79,6 @@ async function boot() {
   }
   try { supabase=createClient(SUPABASE_URL,SUPABASE_ANON); }
   catch(e) { showAuthError('Failed to connect: '+e.message); return; }
-
   const {data:{session},error}=await supabase.auth.getSession();
   if (error) { showAuthError('Session error: '+error.message); return; }
   if (session) { currentUserId=session.user.id; await enterApp(); }
@@ -93,47 +118,74 @@ async function enterApp() {
 
 // ══ Data loading ═══════════════════════════════════════════════════
 async function loadData() {
+  // Load all people
   const {data:people,error:pe}=await supabase
     .from('people').select('id,name,contactintervaldays').order('name');
-  if (!pe) allPeople=people||[];
+  if (pe||!people) { renderFrequentFriends(); return; }
 
-  const threeMonthsAgo=new Date();
-  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth()-3);
-  const cutoff=threeMonthsAgo.toISOString().split('T')[0];
+  // Load last 3 months of qualifying encounters
+  const cutoffDate=new Date();
+  cutoffDate.setMonth(cutoffDate.getMonth()-3);
+  const cutoff=cutoffDate.toISOString().split('T')[0];
 
-  const {data:encounters,error:ee}=await supabase
+  // FIX: PostgREST .not().in() syntax uses plain CSV without quotes
+  const {data:encounters}=await supabase
     .from('encounters').select('id,date,type')
     .gte('date',cutoff)
-    .not('type','in','("message","birthday-acknowledgment")');
+    .not('type','in','(message,birthday-acknowledgment)');
 
-  if (ee||!encounters||!encounters.length) { renderFrequentFriends(); return; }
+  // Also get the most recent encounter per person across ALL time for the badge
+  const {data:allEncounters}=await supabase
+    .from('encounters').select('id,date,type')
+    .not('type','in','(message,birthday-acknowledgment)');
 
-  const {data:participants,error:pae}=await supabase
-    .from('encounter_participants').select('encounterid,personid')
-    .in('encounterid',encounters.map(e=>e.id));
-
-  if (pae||!participants) { renderFrequentFriends(); return; }
-
-  const dateMap=Object.fromEntries(encounters.map(e=>[e.id,e.date]));
-  const stats={};
-  participants.forEach(({encounterid,personid})=>{
-    const date=dateMap[encounterid];
-    if (!stats[personid]) stats[personid]={count:0,lastDate:null};
-    stats[personid].count++;
-    if (!stats[personid].lastDate||date>stats[personid].lastDate) stats[personid].lastDate=date;
-  });
+  const {data:allParticipants}=await supabase
+    .from('encounter_participants').select('encounterid,personid');
 
   const today=new Date(); today.setHours(0,0,0,0);
-  frequentFriends=Object.entries(stats)
-    .sort((a,b)=>b[1].count-a[1].count).slice(0,8)
-    .map(([pid,s])=>{
-      const person=allPeople.find(p=>p.id===pid); if (!person) return null;
-      const last=new Date(s.lastDate); last.setHours(0,0,0,0);
-      return {id:person.id,name:person.name,
-              daysSince:Math.round((today-last)/86400000),
-              interval:person.contactintervaldays||null,count:s.count};
-    }).filter(Boolean);
+
+  // Build lastDate map across all time (for badges)
+  const lastDateMap={};
+  if (allEncounters && allParticipants) {
+    const allDateMap=Object.fromEntries(allEncounters.map(e=>[e.id,e.date]));
+    allParticipants.forEach(({encounterid,personid})=>{
+      const date=allDateMap[encounterid];
+      if (!date) return;
+      if (!lastDateMap[personid]||date>lastDateMap[personid]) lastDateMap[personid]=date;
+    });
+  }
+
+  // Attach daysSince to each person
+  allPeople=people.map(p=>{
+    const lastDate=lastDateMap[p.id];
+    let daysSince=null;
+    if (lastDate) {
+      const last=new Date(lastDate); last.setHours(0,0,0,0);
+      daysSince=Math.round((today-last)/86400000);
+    }
+    return {...p,daysSince};
+  });
+
+  // Compute frequentFriends from last 3 months
+  if (encounters && encounters.length && allParticipants) {
+    const recentIds=new Set(encounters.map(e=>e.id));
+    const recentDateMap=Object.fromEntries(encounters.map(e=>[e.id,e.date]));
+    const stats={};
+    allParticipants.forEach(({encounterid,personid})=>{
+      if (!recentIds.has(encounterid)) return;
+      if (!stats[personid]) stats[personid]={count:0};
+      stats[personid].count++;
+    });
+    frequentFriends=Object.entries(stats)
+      .sort((a,b)=>b[1].count-a[1].count).slice(0,8)
+      .map(([pid])=>allPeople.find(p=>p.id===pid))
+      .filter(Boolean);
+  } else {
+    frequentFriends=[];
+  }
+
   renderFrequentFriends();
+  renderChips(); // refresh chips with updated badge data
 }
 
 // ══ Frequent Friends ═══════════════════════════════════════════════
@@ -146,11 +198,11 @@ function renderFrequentFriends() {
   section.style.display='block';
   grid.innerHTML=frequentFriends.map(f=>{
     const sel=selectedPeople.find(p=>p.id===f.id);
-    const {color,label}=daysBadge(f.daysSince,f.interval);
+    const badge=daysBadge(f.daysSince,f.contactintervaldays);
     return `<button class="ff-card${sel?' ff-selected':''}" data-id="${f.id}" data-name="${esc(f.name)}">
       <div class="ff-avatar">${initials(f.name)}</div>
       <div class="ff-name">${esc(f.name)}</div>
-      <div class="ff-badge" style="background:${color}">${label}</div>
+      ${badge?`<div class="ff-badge" style="background:${badge.color}">${badge.label}</div>`:''}
     </button>`;
   }).join('');
   grid.querySelectorAll('.ff-card').forEach(card=>{
@@ -162,22 +214,6 @@ function renderFrequentFriends() {
   });
 }
 
-function daysBadge(days,interval) {
-  const label=days===0?'today':days===1?'1d':`${days}d`;
-  if (!interval) { return {color:lerpColor('#2D6A4F','#8B5E3C',Math.min(days/90,1)),label}; }
-  if (days<=0) return {color:'#2D6A4F',label};
-  if (days<=interval) return {color:lerpColor('#2D9E5F','#E07B2A',days/interval),label};
-  if (days<=interval*2) return {color:lerpColor('#E07B2A','#C0392B',(days-interval)/interval),label};
-  return {color:lerpColor('#C0392B','#5C0A0A',Math.min((days-interval*2)/(interval*2),1)),label};
-}
-
-function lerpColor(h1,h2,t) {
-  const p=i=>parseInt(i,16);
-  const r1=p(h1.slice(1,3)),g1=p(h1.slice(3,5)),b1=p(h1.slice(5,7));
-  const r2=p(h2.slice(1,3)),g2=p(h2.slice(3,5)),b2=p(h2.slice(5,7));
-  return `rgb(${Math.round(r1+(r2-r1)*t)},${Math.round(g1+(g2-g1)*t)},${Math.round(b1+(b2-b1)*t)})`;
-}
-
 // ══ Encounter type ══════════════════════════════════════════════════
 function handleTypeClick(e) {
   document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('active'));
@@ -185,30 +221,49 @@ function handleTypeClick(e) {
   currentType=e.currentTarget.dataset.type;
 }
 
-// ══ Encounter search ════════════════════════════════════════════════
+// ══ Encounter search (spills upward) ═══════════════════════════════
 function handleSearchInput(e) {
   searchHighlight=-1;
-  const q=e.target.value.trim().toLowerCase();
+  const q=e.target.value.trim();
   const resultsEl=document.getElementById('search-results');
   if (!q) { resultsEl.classList.add('hidden'); resultsEl.innerHTML=''; return; }
+  const ql=q.toLowerCase();
   const selectedIds=new Set(selectedPeople.map(p=>p.id));
   const scored=allPeople.filter(p=>!selectedIds.has(p.id))
-    .map(p=>({p,score:scoreMatch(p.name,q)})).filter(r=>r.score>0)
-    .sort((a,b)=>b.score-a.score).slice(0,8);
-  if (!scored.length) {
-    resultsEl.innerHTML=`<div class="search-no-results">No results</div>`;
-    resultsEl.classList.remove('hidden'); return;
-  }
-  resultsEl.innerHTML=scored.map(({p})=>
-    `<div class="search-result-item" data-id="${p.id}" data-name="${esc(p.name)}">
-       <div class="search-result-avatar">${initials(p.name)}</div>
-       <span class="search-result-name">${esc(p.name)}</span>
-     </div>`).join('');
+    .map(p=>({p,score:scoreMatch(p.name,ql)})).filter(r=>r.score>0)
+    .sort((a,b)=>b.score-a.score).slice(0,7); // leave room for add-new row
+
+  const rows=scored.map(({p})=>{
+    const badge=daysBadge(p.daysSince,p.contactintervaldays);
+    return `<div class="search-result-item" data-id="${p.id}" data-name="${esc(p.name)}">
+      <div class="search-result-avatar">${initials(p.name)}</div>
+      <span class="search-result-name">${esc(p.name)}</span>
+      ${badge?`<span class="person-badge" style="background:${badge.color}">${badge.label}</span>`:''}
+    </div>`;
+  });
+
+  // Always append "add new" row with current query
+  rows.push(`<div class="search-result-item search-add-new" data-addname="${esc(q)}">
+    <div class="search-result-avatar search-avatar-add">+</div>
+    <span class="search-result-name">&ldquo;${esc(q)}&rdquo; &mdash; add new person</span>
+  </div>`);
+
+  resultsEl.innerHTML=rows.join('');
   resultsEl.classList.remove('hidden');
-  resultsEl.querySelectorAll('.search-result-item').forEach(item=>{
+
+  resultsEl.querySelectorAll('.search-result-item:not(.search-add-new)').forEach(item=>{
     item.addEventListener('click',()=>addPerson(item.dataset.id,item.dataset.name));
     item.addEventListener('touchend',ev=>{ev.preventDefault();addPerson(item.dataset.id,item.dataset.name);});
   });
+  resultsEl.querySelectorAll('.search-add-new').forEach(item=>{
+    item.addEventListener('click',()=>goAddNewFromSearch(item.dataset.addname));
+    item.addEventListener('touchend',ev=>{ev.preventDefault();goAddNewFromSearch(item.dataset.addname);});
+  });
+}
+
+function goAddNewFromSearch(name) {
+  clearEncounterSearch();
+  openPeopleScreen(name);
 }
 
 function handleSearchKey(e) {
@@ -220,7 +275,10 @@ function handleSearchKey(e) {
   else if (e.key==='Enter') {
     e.preventDefault();
     const t=searchHighlight>=0?items[searchHighlight]:items[0];
-    if (t) addPerson(t.dataset.id,t.dataset.name); return;
+    if (!t) return;
+    if (t.classList.contains('search-add-new')) goAddNewFromSearch(t.dataset.addname);
+    else addPerson(t.dataset.id,t.dataset.name);
+    return;
   } else if (e.key==='Escape') { clearEncounterSearch(); return; }
   items.forEach((el,i)=>el.classList.toggle('highlighted',i===searchHighlight));
 }
@@ -238,15 +296,23 @@ function addPerson(id,name) {
   if (selectedPeople.find(p=>p.id===id)) { clearEncounterSearch(); return; }
   selectedPeople.push({id,name}); clearEncounterSearch(); renderChips();
 }
-function removePerson(id) { selectedPeople=selectedPeople.filter(p=>p.id!==id); renderChips(); }
+function removePerson(id) {
+  selectedPeople=selectedPeople.filter(p=>p.id!==id); renderChips();
+}
 function renderChips() {
   const wrap=document.getElementById('chips-wrap');
   const section=document.getElementById('selected-section');
   if (!selectedPeople.length) { section.style.display='none'; wrap.innerHTML=''; return; }
   section.style.display='block';
-  wrap.innerHTML=selectedPeople.map(p=>
-    `<div class="chip">${esc(p.name)}<button class="chip-remove" data-id="${p.id}">&times;</button></div>`
-  ).join('');
+  wrap.innerHTML=selectedPeople.map(p=>{
+    const full=allPeople.find(a=>a.id===p.id);
+    const badge=full?daysBadge(full.daysSince,full.contactintervaldays):null;
+    return `<div class="chip">
+      ${badge?`<span class="chip-badge" style="background:${badge.color}">${badge.label}</span>`:''}
+      ${esc(p.name)}
+      <button class="chip-remove" data-id="${p.id}">&times;</button>
+    </div>`;
+  }).join('');
   wrap.querySelectorAll('.chip-remove').forEach(btn=>{
     btn.addEventListener('click',()=>{ removePerson(btn.dataset.id); renderFrequentFriends(); });
   });
@@ -281,7 +347,6 @@ async function handleSave() {
   await loadData();
   setTimeout(()=>document.getElementById('save-status').classList.add('hidden'),4000);
 }
-
 function showEncounterStatus(msg,type) {
   const el=document.getElementById('save-status');
   el.textContent=msg; el.className='save-status '+type;
@@ -291,19 +356,18 @@ function showEncounterStatus(msg,type) {
 //  PEOPLE SCREEN
 // ══════════════════════════════════════════════════════════════════
 
-function openPeopleScreen() {
+function openPeopleScreen(prefillName='') {
   editingPerson=null; unlockedFields=new Set();
   showScreen('people-screen');
-  document.getElementById('people-screen-title').textContent='Add Person';
-  document.getElementById('people-find-section').style.display='block';
-  document.getElementById('people-form-section').style.display='none';
-  document.getElementById('people-clear-btn').style.display='none';
+  document.getElementById('people-screen-title').textContent='Person';
   document.getElementById('people-search-input').value='';
   document.getElementById('people-search-results').classList.add('hidden');
   document.getElementById('people-search-results').innerHTML='';
   resetPeopleForm();
-  // Show the add-new form immediately below the search
   showPeopleForm(null);
+  if (prefillName) {
+    document.getElementById('p-name').value=prefillName;
+  }
 }
 
 function resetPeopleForm() {
@@ -317,143 +381,133 @@ function resetPeopleForm() {
   document.getElementById('p-notes-existing').classList.add('hidden');
   document.getElementById('p-notes-existing').innerHTML='';
   document.getElementById('people-save-status').classList.add('hidden');
-  // Remove all locks
   ['name','firstmet','birthday'].forEach(f=>{
     document.getElementById(f+'-lock').classList.add('hidden');
-    const input=getFieldInput(f);
-    if (input) { if (Array.isArray(input)) input.forEach(i=>i.removeAttribute('disabled')); else input.removeAttribute('disabled'); }
+    const inp=getFieldInputs(f);
+    inp.forEach(i=>i.removeAttribute('disabled'));
   });
 }
 
-function getFieldInput(field) {
-  if (field==='name') return document.getElementById('p-name');
-  if (field==='firstmet') return document.getElementById('p-firstmet');
+function getFieldInputs(field) {
+  if (field==='name')     return [document.getElementById('p-name')];
+  if (field==='firstmet') return [document.getElementById('p-firstmet')];
   if (field==='birthday') return [
     document.getElementById('p-bday'),
     document.getElementById('p-bmonth'),
     document.getElementById('p-byear'),
   ];
-  return null;
+  return [];
 }
 
-// Show the form, optionally prefilled with a person record
 function showPeopleForm(person) {
   editingPerson=person;
   unlockedFields=new Set();
   document.getElementById('people-form-section').style.display='block';
-
-  if (!person) {
-    // Add mode
-    document.getElementById('people-screen-title').textContent='Add Person';
-    document.getElementById('people-clear-btn').style.display='none';
-    document.getElementById('people-save-btn-text').textContent='Save Person';
-    resetPeopleForm();
-    return;
-  }
-
-  // Edit mode
-  document.getElementById('people-screen-title').textContent='Edit Person';
-  document.getElementById('people-clear-btn').style.display='block';
-  document.getElementById('people-save-btn-text').textContent='Save Changes';
+  document.getElementById('people-clear-btn').style.display=person?'block':'none';
+  document.getElementById('people-save-btn-text').textContent=person?'Save Changes':'Save Person';
+  document.getElementById('people-screen-title').textContent=person?'Edit Person':'Add Person';
   document.getElementById('people-save-status').classList.add('hidden');
 
-  // Name
+  if (!person) { resetPeopleForm(); return; }
+
   document.getElementById('p-name').value=person.name||'';
-  lockField('name', !!person.name);
-
-  // First met
+  lockField('name',!!person.name);
   document.getElementById('p-firstmet').value=person.firstmet||'';
-  lockField('firstmet', !!person.firstmet);
-
-  // Birthday
+  lockField('firstmet',!!person.firstmet);
   document.getElementById('p-bday').value=person.birthday_day||'';
   document.getElementById('p-bmonth').value=person.birthday_month||'';
   document.getElementById('p-byear').value=person.birthday_year||'';
-  const hasBirthday=person.birthday_day||person.birthday_month||person.birthday_year;
-  lockField('birthday', !!hasBirthday);
-
-  // Interval (always editable)
+  lockField('birthday',!!(person.birthday_day||person.birthday_month||person.birthday_year));
   document.getElementById('p-interval').value=person.contactintervaldays||'';
-
-  // Notes (existing shown read-only, new textarea empty)
-  const existingNotes=document.getElementById('p-notes-existing');
+  const ex=document.getElementById('p-notes-existing');
   if (person.notes) {
-    existingNotes.innerHTML=`<div class="notes-existing-label">Existing notes</div><div class="notes-existing-text">${esc(person.notes)}</div>`;
-    existingNotes.classList.remove('hidden');
+    ex.innerHTML=`<div class="notes-existing-label">Existing notes</div><div class="notes-existing-text">${esc(person.notes)}</div>`;
+    ex.classList.remove('hidden');
   } else {
-    existingNotes.classList.add('hidden');
+    ex.classList.add('hidden');
   }
   document.getElementById('p-notes-new').value='';
 }
 
-// Lock a field visually and functionally if it has data
-function lockField(field, hasData) {
+function lockField(field,hasData) {
   const lock=document.getElementById(field+'-lock');
-  const inputs=getFieldInput(field);
-  if (!inputs) return;
+  const inputs=getFieldInputs(field);
   if (hasData) {
     lock.classList.remove('hidden');
-    if (Array.isArray(inputs)) inputs.forEach(i=>i.setAttribute('disabled',''));
-    else inputs.setAttribute('disabled','');
+    inputs.forEach(i=>i.setAttribute('disabled',''));
   } else {
     lock.classList.add('hidden');
-    if (Array.isArray(inputs)) inputs.forEach(i=>i.removeAttribute('disabled'));
-    else inputs.removeAttribute('disabled');
+    inputs.forEach(i=>i.removeAttribute('disabled'));
   }
 }
 
 function handleLockClick(field) {
-  if (unlockedFields.has(field)) return; // already unlocked
+  if (unlockedFields.has(field)) return;
   pendingUnlock=field;
   const labels={name:'the person\'s name',firstmet:'the date you first met',birthday:'their birthday'};
   document.getElementById('unlock-modal-msg').textContent=
     `Changing ${labels[field]} is permanent and can't be undone easily. Are you sure?`;
   document.getElementById('unlock-modal').classList.remove('hidden');
 }
-
 function confirmUnlock() {
   if (!pendingUnlock) return;
   unlockedFields.add(pendingUnlock);
-  const inputs=getFieldInput(pendingUnlock);
-  if (inputs) {
-    if (Array.isArray(inputs)) inputs.forEach(i=>i.removeAttribute('disabled'));
-    else inputs.removeAttribute('disabled');
-  }
+  getFieldInputs(pendingUnlock).forEach(i=>i.removeAttribute('disabled'));
   document.getElementById(pendingUnlock+'-lock').classList.add('hidden');
   document.getElementById('unlock-modal').classList.add('hidden');
   pendingUnlock=null;
 }
-
 function cancelUnlock() {
   pendingUnlock=null;
   document.getElementById('unlock-modal').classList.add('hidden');
 }
 
-// People search
+// People screen search — spills downward, includes "add new" at bottom
 function handlePeopleSearchInput(e) {
-  const q=e.target.value.trim().toLowerCase();
+  const q=e.target.value.trim();
   const resultsEl=document.getElementById('people-search-results');
   if (!q) { resultsEl.classList.add('hidden'); resultsEl.innerHTML=''; return; }
-  const scored=allPeople.map(p=>({p,score:scoreMatch(p.name,q)}))
-    .filter(r=>r.score>0).sort((a,b)=>b.score-a.score).slice(0,8);
-  if (!scored.length) {
-    resultsEl.innerHTML='<div class="search-no-results">No results</div>';
-    resultsEl.classList.remove('hidden'); return;
-  }
-  resultsEl.innerHTML=scored.map(({p})=>
-    `<div class="search-result-item" data-id="${p.id}" data-name="${esc(p.name)}">
-       <div class="search-result-avatar">${initials(p.name)}</div>
-       <span class="search-result-name">${esc(p.name)}</span>
-     </div>`).join('');
+  const ql=q.toLowerCase();
+  const scored=allPeople.map(p=>({p,score:scoreMatch(p.name,ql)}))
+    .filter(r=>r.score>0).sort((a,b)=>b.score-a.score).slice(0,7);
+
+  const rows=scored.map(({p})=>{
+    const badge=daysBadge(p.daysSince,p.contactintervaldays);
+    return `<div class="search-result-item" data-id="${p.id}" data-name="${esc(p.name)}">
+      <div class="search-result-avatar">${initials(p.name)}</div>
+      <span class="search-result-name">${esc(p.name)}</span>
+      ${badge?`<span class="person-badge" style="background:${badge.color}">${badge.label}</span>`:''}
+    </div>`;
+  });
+
+  // "Add new" option prefilled with query
+  rows.push(`<div class="search-result-item search-add-new" data-addname="${esc(q)}">
+    <div class="search-result-avatar search-avatar-add">+</div>
+    <span class="search-result-name">&ldquo;${esc(q)}&rdquo; &mdash; add as new person</span>
+  </div>`);
+
+  resultsEl.innerHTML=rows.join('');
   resultsEl.classList.remove('hidden');
-  resultsEl.querySelectorAll('.search-result-item').forEach(item=>{
+
+  resultsEl.querySelectorAll('.search-result-item:not(.search-add-new)').forEach(item=>{
     item.addEventListener('click',()=>selectPersonForEdit(item.dataset.id));
     item.addEventListener('touchend',ev=>{ev.preventDefault();selectPersonForEdit(item.dataset.id);});
   });
+  resultsEl.querySelectorAll('.search-add-new').forEach(item=>{
+    item.addEventListener('click',()=>prefillNewPersonFromPeopleSearch(item.dataset.addname));
+    item.addEventListener('touchend',ev=>{ev.preventDefault();prefillNewPersonFromPeopleSearch(item.dataset.addname);});
+  });
+}
+
+function prefillNewPersonFromPeopleSearch(name) {
+  document.getElementById('people-search-input').value='';
+  document.getElementById('people-search-results').classList.add('hidden');
+  resetPeopleForm();
+  showPeopleForm(null);
+  document.getElementById('p-name').value=name;
 }
 
 async function selectPersonForEdit(id) {
-  // Fetch full record
   const {data,error}=await supabase.from('people')
     .select('id,name,firstmet,birthday_day,birthday_month,birthday_year,contactintervaldays,notes')
     .eq('id',id).single();
@@ -463,11 +517,9 @@ async function selectPersonForEdit(id) {
   showPeopleForm(data);
 }
 
-// Save person (add or edit)
 async function handlePeopleSave() {
   const name=document.getElementById('p-name').value.trim();
   if (!name) { showPeopleStatus('Name is required.','error'); return; }
-
   const btn=document.getElementById('people-save-btn');
   const txt=document.getElementById('people-save-btn-text');
   btn.disabled=true; txt.textContent='Saving...';
@@ -478,33 +530,22 @@ async function handlePeopleSave() {
   const byear=parseInt(document.getElementById('p-byear').value)||null;
   const interval=parseInt(document.getElementById('p-interval').value)||null;
   const newNote=document.getElementById('p-notes-new').value.trim();
+  const stamp=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
 
   if (editingPerson) {
-    // Build update payload — only include fields that are now editable
-    const payload={};
-
-    // Core fields: only update if unlocked OR were blank before
+    const payload={contactintervaldays:interval};
     if (!editingPerson.name||unlockedFields.has('name')) payload.name=name;
     if (!editingPerson.firstmet||unlockedFields.has('firstmet')) payload.firstmet=firstmet;
     const hadBirthday=editingPerson.birthday_day||editingPerson.birthday_month||editingPerson.birthday_year;
     if (!hadBirthday||unlockedFields.has('birthday')) {
       payload.birthday_day=bday; payload.birthday_month=bmonth; payload.birthday_year=byear;
     }
-
-    // Always update interval
-    payload.contactintervaldays=interval;
-
-    // Notes: prepend new note with datestamp if provided
     if (newNote) {
-      const stamp=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
       const appended=`[${stamp}] ${newNote}`;
-      payload.notes=editingPerson.notes ? editingPerson.notes+'\n\n'+appended : appended;
+      payload.notes=editingPerson.notes?editingPerson.notes+'\n\n'+appended:appended;
     }
-
     const {error}=await supabase.from('people').update(payload).eq('id',editingPerson.id);
     if (error) { showPeopleStatus('Error: '+error.message,'error'); btn.disabled=false; txt.textContent='Save Changes'; return; }
-
-    // Refresh local copy
     editingPerson={...editingPerson,...payload};
     if (payload.notes) {
       const ex=document.getElementById('p-notes-existing');
@@ -513,12 +554,12 @@ async function handlePeopleSave() {
       document.getElementById('p-notes-new').value='';
     }
     showPeopleStatus('Saved.','success');
-
+    await loadData();
   } else {
-    // Add mode
-    const noteText=newNote?`[${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}] ${newNote}`:null;
+    // Add mode — use auth.uid() via RLS default, do NOT pass user_id
+    const noteText=newNote?`[${stamp}] ${newNote}`:null;
     const payload={
-      user_id:currentUserId, name,
+      name,
       firstmet:firstmet||todayISO(),
       birthday_day:bday, birthday_month:bmonth, birthday_year:byear,
       contactintervaldays:interval, notes:noteText
@@ -527,7 +568,7 @@ async function handlePeopleSave() {
     if (error) { showPeopleStatus('Error: '+error.message,'error'); btn.disabled=false; txt.textContent='Save Person'; return; }
     showPeopleStatus('Person added!','success');
     resetPeopleForm();
-    await loadData(); // refresh allPeople
+    await loadData();
   }
 
   btn.disabled=false;
@@ -540,7 +581,7 @@ function showPeopleStatus(msg,type) {
   el.textContent=msg; el.className='save-status '+type;
 }
 
-// ══ Populate birthday dropdowns ════════════════════════════════════
+// ══ Birthday dropdowns ══════════════════════════════════════════════
 function populateBirthdayDropdowns() {
   const dayEl=document.getElementById('p-bday');
   const monthEl=document.getElementById('p-bmonth');
@@ -552,40 +593,28 @@ function populateBirthdayDropdowns() {
 document.addEventListener('DOMContentLoaded',()=>{
   populateBirthdayDropdowns();
 
-  // Auth
   document.getElementById('auth-btn').addEventListener('click',handleLogin);
   document.getElementById('sign-out-btn').addEventListener('click',handleSignOut);
-
-  // Main encounter screen
   document.getElementById('save-btn').addEventListener('click',handleSave);
   document.getElementById('search-input').addEventListener('input',handleSearchInput);
   document.getElementById('search-input').addEventListener('keydown',handleSearchKey);
   document.querySelectorAll('.type-btn').forEach(btn=>btn.addEventListener('click',handleTypeClick));
-  document.getElementById('add-person-btn').addEventListener('click',openPeopleScreen);
+  document.getElementById('add-person-btn').addEventListener('click',()=>openPeopleScreen());
 
-  // People screen navigation
-  document.getElementById('people-back-btn').addEventListener('click',()=>{
-    showScreen('app-screen');
-  });
+  document.getElementById('people-back-btn').addEventListener('click',()=>showScreen('app-screen'));
   document.getElementById('people-clear-btn').addEventListener('click',()=>{
     editingPerson=null; unlockedFields=new Set();
-    document.getElementById('people-screen-title').textContent='Add Person';
-    document.getElementById('people-clear-btn').style.display='none';
     document.getElementById('people-search-input').value='';
-    resetPeopleForm();
-    showPeopleForm(null);
+    document.getElementById('people-search-results').classList.add('hidden');
+    resetPeopleForm(); showPeopleForm(null);
   });
 
-  // People form
   document.getElementById('people-search-input').addEventListener('input',handlePeopleSearchInput);
   document.getElementById('people-save-btn').addEventListener('click',handlePeopleSave);
 
-  // Lock icons
   document.getElementById('name-lock').addEventListener('click',()=>handleLockClick('name'));
   document.getElementById('firstmet-lock').addEventListener('click',()=>handleLockClick('firstmet'));
   document.getElementById('birthday-lock').addEventListener('click',()=>handleLockClick('birthday'));
-
-  // Unlock modal
   document.getElementById('unlock-confirm-btn').addEventListener('click',confirmUnlock);
   document.getElementById('unlock-cancel-btn').addEventListener('click',cancelUnlock);
 
