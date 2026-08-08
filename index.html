@@ -8,7 +8,7 @@
 </head>
 <body>
 
-  <!-- ═══ AUTH SCREEN ═══════════════════════════════════════════ -->
+  <!-- AUTH SCREEN -->
   <div id="auth-screen" class="screen active">
     <div class="auth-container">
       <div class="auth-logo">
@@ -28,11 +28,11 @@
         <div id="auth-error" class="auth-error hidden"></div>
         <button id="auth-btn" class="btn-primary">Sign In</button>
       </div>
-      <p class="version-tag">v1.4 &middot; Aug 2026</p>
+      <p class="version-tag">v1.5 &middot; Aug 2026</p>
     </div>
   </div>
 
-  <!-- ═══ MAIN APP SCREEN ════════════════════════════════════════ -->
+  <!-- MAIN APP SCREEN -->
   <div id="app-screen" class="screen">
 
     <header class="app-header">
@@ -61,13 +61,14 @@
       <div class="ff-grid" id="frequent-grid"></div>
     </section>
 
-    <!-- SEARCH -->
-    <section class="section">
+    <!-- SEARCH — wrapper has position:relative so dropdown anchors here -->
+    <section class="section" style="position:relative">
       <div class="search-wrap">
         <span class="search-icon">&#x2315;</span>
         <input class="search-input" id="search-input" type="search"
           placeholder="Search people..." autocomplete="off" autocorrect="off" spellcheck="false" />
       </div>
+      <!-- Results float ABOVE the input via CSS -->
       <div id="search-results" class="search-results hidden"></div>
     </section>
 
@@ -101,16 +102,15 @@
     <div style="height:2rem"></div>
   </div>
 
-  <!-- ═══ PEOPLE SCREEN ══════════════════════════════════════════ -->
+  <!-- PEOPLE SCREEN -->
   <div id="people-screen" class="screen">
 
     <header class="app-header">
       <button class="btn-icon" id="people-back-btn" title="Back">&#x2190;</button>
       <h1 class="header-title" id="people-screen-title">Person</h1>
-      <div style="width:36px"></div><!-- spacer -->
+      <div style="width:36px"></div>
     </header>
 
-    <!-- FIND EXISTING (shown when no person selected for edit) -->
     <section class="section" id="people-find-section">
       <div class="section-label">Edit existing</div>
       <div class="search-wrap">
@@ -119,21 +119,16 @@
           placeholder="Search people to edit..." autocomplete="off" autocorrect="off" spellcheck="false" />
       </div>
       <div id="people-search-results" class="search-results hidden"></div>
-      <div class="people-divider">
-        <span>or add new</span>
-      </div>
+      <div class="people-divider"><span>or add new</span></div>
     </section>
 
-    <!-- PERSON FORM -->
     <section class="section" id="people-form-section" style="display:none">
 
-      <!-- Back to search (edit mode only) -->
       <button class="btn-secondary" id="people-clear-btn" style="display:none; margin-bottom:0.8rem">
         &#x2190; Search again
       </button>
 
-      <!-- NAME -->
-      <div class="field-group" id="pg-name">
+      <div class="field-group">
         <div class="field-label-row">
           <label class="field-label">Name <span class="field-required">*</span></label>
           <span class="field-lock hidden" id="name-lock" title="Tap to unlock">&#x1F512;</span>
@@ -141,8 +136,7 @@
         <input class="field-input" id="p-name" type="text" placeholder="Full name" />
       </div>
 
-      <!-- FIRST MET -->
-      <div class="field-group" id="pg-firstmet">
+      <div class="field-group">
         <div class="field-label-row">
           <label class="field-label">First met</label>
           <span class="field-lock hidden" id="firstmet-lock" title="Tap to unlock">&#x1F512;</span>
@@ -151,8 +145,7 @@
         <div class="field-hint">Defaults to today for new people</div>
       </div>
 
-      <!-- BIRTHDAY -->
-      <div class="field-group" id="pg-birthday">
+      <div class="field-group">
         <div class="field-label-row">
           <label class="field-label">Birthday</label>
           <span class="field-lock hidden" id="birthday-lock" title="Tap to unlock">&#x1F512;</span>
@@ -160,15 +153,11 @@
         <div class="birthday-row">
           <div class="birthday-col">
             <div class="field-sublabel">Day</div>
-            <select class="field-input field-select" id="p-bday">
-              <option value="">—</option>
-            </select>
+            <select class="field-input field-select" id="p-bday"><option value="">—</option></select>
           </div>
           <div class="birthday-col">
             <div class="field-sublabel">Month</div>
-            <select class="field-input field-select" id="p-bmonth">
-              <option value="">—</option>
-            </select>
+            <select class="field-input field-select" id="p-bmonth"><option value="">—</option></select>
           </div>
           <div class="birthday-col birthday-col-year">
             <div class="field-sublabel">Year</div>
@@ -178,37 +167,33 @@
         <div class="field-hint">Any combination of fields is fine</div>
       </div>
 
-      <!-- CONTACT INTERVAL -->
       <div class="field-group">
         <label class="field-label">Contact every</label>
         <div class="interval-row">
           <input class="field-input interval-input" id="p-interval" type="number" min="1" max="365" placeholder="e.g. 14" />
           <span class="interval-unit">days</span>
         </div>
-        <div class="field-hint">Used for overdue reminders. Leave blank if not needed.</div>
+        <div class="field-hint">Leave blank if not needed</div>
       </div>
 
-      <!-- NOTES -->
       <div class="field-group">
         <label class="field-label">Notes</label>
-        <div class="field-hint" style="margin-bottom:0.4rem">New notes are added below existing ones</div>
+        <div class="field-hint" style="margin-bottom:0.4rem">New notes are added to existing ones</div>
         <textarea class="notes-input" id="p-notes-new" placeholder="Add a note..." rows="3"></textarea>
         <div id="p-notes-existing" class="notes-existing hidden"></div>
       </div>
 
-      <!-- SAVE BUTTON -->
       <button class="btn-primary" id="people-save-btn" style="margin-top:0.5rem">
         <span id="people-save-btn-text">Save Person</span>
       </button>
       <div id="people-save-status" class="save-status hidden"></div>
 
-      <!-- UNLOCK CONFIRMATION MODAL -->
       <div id="unlock-modal" class="modal-backdrop hidden">
         <div class="modal">
-          <p class="modal-msg" id="unlock-modal-msg">Are you sure you want to change this?</p>
+          <p class="modal-msg" id="unlock-modal-msg">Are you sure?</p>
           <div class="modal-actions">
             <button class="btn-secondary" id="unlock-cancel-btn">Cancel</button>
-            <button class="btn-danger"    id="unlock-confirm-btn">Unlock &amp; Edit</button>
+            <button class="btn-danger" id="unlock-confirm-btn">Unlock &amp; Edit</button>
           </div>
         </div>
       </div>

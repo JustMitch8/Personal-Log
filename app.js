@@ -123,21 +123,19 @@ async function loadData() {
     .from('people').select('id,name,contactintervaldays').order('name');
   if (pe||!people) { renderFrequentFriends(); return; }
 
-  // Load last 3 months of qualifying encounters
+  // Filter excluded types in JS — PostgREST chokes on hyphens in .not().in()
+  const EXCLUDED=new Set(['message','birthday-acknowledgment']);
   const cutoffDate=new Date();
   cutoffDate.setMonth(cutoffDate.getMonth()-3);
   const cutoff=cutoffDate.toISOString().split('T')[0];
 
-  // FIX: PostgREST .not().in() syntax uses plain CSV without quotes
-  const {data:encounters}=await supabase
-    .from('encounters').select('id,date,type')
-    .gte('date',cutoff)
-    .not('type','in','(message,birthday-acknowledgment)');
+  const {data:recentRaw}=await supabase
+    .from('encounters').select('id,date,type').gte('date',cutoff);
+  const encounters=(recentRaw||[]).filter(e=>!EXCLUDED.has(e.type));
 
-  // Also get the most recent encounter per person across ALL time for the badge
-  const {data:allEncounters}=await supabase
-    .from('encounters').select('id,date,type')
-    .not('type','in','(message,birthday-acknowledgment)');
+  const {data:allRaw}=await supabase
+    .from('encounters').select('id,date,type');
+  const allEncounters=(allRaw||[]).filter(e=>!EXCLUDED.has(e.type));
 
   const {data:allParticipants}=await supabase
     .from('encounter_participants').select('encounterid,personid');
