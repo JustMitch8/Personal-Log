@@ -1,2 +1,2 @@
 # Personal-Log
-a tracker for personal contacts and encounters
+A tracker for personal contacts and encounters
