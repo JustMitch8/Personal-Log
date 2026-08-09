@@ -28,7 +28,7 @@
         <div id="auth-error" class="auth-error hidden"></div>
         <button id="auth-btn" class="btn-primary">Sign In</button>
       </div>
-      <p class="version-tag">v1.5 &middot; Aug 2026</p>
+      <p class="version-tag">v1.6 &middot; Aug 2026</p>
     </div>
   </div>
 
@@ -46,7 +46,7 @@
     <section class="section">
       <div class="section-label">Encounter type</div>
       <div class="type-switcher">
-        <button class="type-btn active" data-type="call">Call</button>
+        <button class="type-btn" data-type="call">Call</button>
         <button class="type-btn" data-type="1-on-1">1-on-1</button>
         <button class="type-btn" data-type="small-group">Small group</button>
         <button class="type-btn" data-type="large-group">Large group</button>
@@ -88,7 +88,11 @@
     <!-- DATE -->
     <section class="section">
       <div class="section-label">Date</div>
-      <input class="field-input" id="date-input" type="date" />
+      <div class="date-row">
+        <input class="field-input date-input-shrink" id="date-input" type="date" />
+        <button class="date-quick-btn" id="btn-today" title="Today">&#9675; now</button>
+        <button class="date-quick-btn" id="btn-yesterday" title="Yesterday">&#8634; yday</button>
+      </div>
     </section>
 
     <!-- SAVE -->

@@ -384,3 +384,31 @@ input[type="date"].field-input { color-scheme: dark; }
     min-height: 100dvh; box-shadow: 0 0 60px rgba(0,0,0,0.5);
   }
 }
+
+/* ─── DATE ROW ─────────────────────────────────────────────────── */
+.date-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.date-input-shrink {
+  flex: 1;
+  min-width: 0;
+}
+.date-quick-btn {
+  background: var(--navy-mid);
+  border: 1.5px solid var(--navy-light);
+  color: var(--fog);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 0.6rem;
+  font-size: 0.78rem;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+.date-quick-btn:hover {
+  border-color: var(--amber);
+  color: var(--amber);
+}

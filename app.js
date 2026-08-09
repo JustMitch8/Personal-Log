@@ -7,7 +7,7 @@ let allPeople       = [];   // [{id, name, contactintervaldays, daysSince}]
 let frequentFriends = [];
 let selectedPeople  = [];
 let searchHighlight = -1;
-let currentType     = 'call';
+let currentType     = null;
 
 // People screen state
 let editingPerson  = null;
@@ -27,6 +27,14 @@ function esc(s) {
 }
 function initials(name) {
   return name.split(/\s+/).slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
+}
+function sentenceCase(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+function yesterdayISO() {
+  const d=new Date(); d.setDate(d.getDate()-1);
+  const p=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
 }
 function todayISO() {
   const d=new Date(), p=n=>String(n).padStart(2,'0');
@@ -113,6 +121,8 @@ async function handleSignOut() {
 async function enterApp() {
   showScreen('app-screen');
   document.getElementById('date-input').value=todayISO();
+  document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('active'));
+  currentType=null;
   await loadData();
 }
 
@@ -222,7 +232,10 @@ function handleTypeClick(e) {
 // ══ Encounter search (spills upward) ═══════════════════════════════
 function handleSearchInput(e) {
   searchHighlight=-1;
-  const q=e.target.value.trim();
+  const raw=e.target.value;
+  const q=sentenceCase(raw.trim());
+  // Update input value to sentence case
+  if (raw&&raw[0]!==raw[0].toUpperCase()) { const el=e.target; const pos=el.selectionStart; el.value=sentenceCase(raw); el.setSelectionRange(pos,pos); }
   const resultsEl=document.getElementById('search-results');
   if (!q) { resultsEl.classList.add('hidden'); resultsEl.innerHTML=''; return; }
   const ql=q.toLowerCase();
@@ -231,7 +244,8 @@ function handleSearchInput(e) {
     .map(p=>({p,score:scoreMatch(p.name,ql)})).filter(r=>r.score>0)
     .sort((a,b)=>b.score-a.score).slice(0,7); // leave room for add-new row
 
-  const rows=scored.map(({p})=>{
+  // Best match at BOTTOM (closest to search bar) — reverse order, add-new at TOP
+  const matchRows=scored.reverse().map(({p})=>{
     const badge=daysBadge(p.daysSince,p.contactintervaldays);
     return `<div class="search-result-item" data-id="${p.id}" data-name="${esc(p.name)}">
       <div class="search-result-avatar">${initials(p.name)}</div>
@@ -240,14 +254,16 @@ function handleSearchInput(e) {
     </div>`;
   });
 
-  // Always append "add new" row with current query
-  rows.push(`<div class="search-result-item search-add-new" data-addname="${esc(q)}">
+  // Add-new at the very TOP
+  const addNewRow=`<div class="search-result-item search-add-new" data-addname="${esc(q)}">
     <div class="search-result-avatar search-avatar-add">+</div>
     <span class="search-result-name">&ldquo;${esc(q)}&rdquo; &mdash; add new person</span>
-  </div>`);
+  </div>`;
 
-  resultsEl.innerHTML=rows.join('');
+  resultsEl.innerHTML=[addNewRow,...matchRows].join('');
   resultsEl.classList.remove('hidden');
+  // Always scroll to bottom so best match is visible
+  resultsEl.scrollTop=resultsEl.scrollHeight;
 
   resultsEl.querySelectorAll('.search-result-item:not(.search-add-new)').forEach(item=>{
     item.addEventListener('click',()=>addPerson(item.dataset.id,item.dataset.name));
@@ -324,6 +340,7 @@ function clearEncounterSearch() {
 // ══ Save encounter ══════════════════════════════════════════════════
 async function handleSave() {
   if (!selectedPeople.length) { showEncounterStatus('Add at least one person first.','error'); return; }
+  if (!currentType) { showEncounterStatus('Please select an encounter type.','error'); return; }
   const date=document.getElementById('date-input').value;
   const notes=document.getElementById('notes-input').value.trim();
   if (!date) { showEncounterStatus('Please select a date.','error'); return; }
@@ -340,8 +357,7 @@ async function handleSave() {
   selectedPeople=[]; renderChips();
   document.getElementById('notes-input').value='';
   document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('active'));
-  document.querySelector('[data-type="call"]').classList.add('active');
-  currentType='call'; btn.disabled=false; txt.textContent='Save Encounter';
+  currentType=null; btn.disabled=false; txt.textContent='Save Encounter';
   await loadData();
   setTimeout(()=>document.getElementById('save-status').classList.add('hidden'),4000);
 }
@@ -598,6 +614,12 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('search-input').addEventListener('keydown',handleSearchKey);
   document.querySelectorAll('.type-btn').forEach(btn=>btn.addEventListener('click',handleTypeClick));
   document.getElementById('add-person-btn').addEventListener('click',()=>openPeopleScreen());
+  document.getElementById('btn-today').addEventListener('click',()=>{
+    document.getElementById('date-input').value=todayISO();
+  });
+  document.getElementById('btn-yesterday').addEventListener('click',()=>{
+    document.getElementById('date-input').value=yesterdayISO();
+  });
 
   document.getElementById('people-back-btn').addEventListener('click',()=>showScreen('app-screen'));
   document.getElementById('people-clear-btn').addEventListener('click',()=>{
@@ -608,6 +630,10 @@ document.addEventListener('DOMContentLoaded',()=>{
   });
 
   document.getElementById('people-search-input').addEventListener('input',handlePeopleSearchInput);
+  document.getElementById('p-name').addEventListener('input',function(){
+    const el=this; const v=el.value; const pos=el.selectionStart;
+    if(v&&v[0]!==v[0].toUpperCase()){el.value=sentenceCase(v);el.setSelectionRange(pos,pos);}
+  });
   document.getElementById('people-save-btn').addEventListener('click',handlePeopleSave);
 
   document.getElementById('name-lock').addEventListener('click',()=>handleLockClick('name'));
