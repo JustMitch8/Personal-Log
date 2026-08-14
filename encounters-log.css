@@ -1,13 +1,12 @@
-/* encounters-log.css */
+/* encounters-log.css — v1.8 */
 
-/* ── Filters row ────────────────────────────────────────────────── */
+/* ── Filters ─────────────────────────────────────────────────────── */
 .log-search-row {
   display: flex;
   gap: 0.5rem;
   align-items: center;
   margin-bottom: 0.6rem;
 }
-
 .log-filters {
   display: flex;
   gap: 0.5rem;
@@ -15,7 +14,6 @@
   flex-wrap: wrap;
   margin-top: 0.6rem;
 }
-
 .log-filter-select {
   background: var(--navy-mid);
   border: 1.5px solid var(--navy-light);
@@ -35,7 +33,6 @@
   transition: border-color 0.18s ease;
 }
 .log-filter-select:focus { outline: none; border-color: var(--amber); }
-
 .log-sort-dir-btn {
   background: var(--navy-mid);
   border: 1.5px solid var(--navy-light);
@@ -50,14 +47,13 @@
 }
 .log-sort-dir-btn:hover { border-color: var(--amber); color: var(--amber); }
 
-/* ── Log list ────────────────────────────────────────────────────── */
+/* ── Log list ─────────────────────────────────────────────────────── */
 .log-list {
   padding: 0.8rem 1.2rem;
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
 }
-
 .log-loading {
   text-align: center;
   color: var(--fog);
@@ -66,13 +62,45 @@
 }
 .log-error { color: #e8a09a; }
 
-/* ── Log card ────────────────────────────────────────────────────── */
+/* ── Swipe wrapper ────────────────────────────────────────────────── */
+.log-card-wrap {
+  position: relative;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+/* Red delete zone revealed behind card on swipe */
+.log-swipe-bg {
+  position: absolute;
+  inset: 0;
+  background: var(--red);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 1.2rem;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  border-radius: var(--radius-md);
+}
+.log-swipe-label {
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Card sits on top, slides left on swipe */
 .log-card {
+  position: relative;
   background: var(--navy-mid);
   border: 1.5px solid var(--navy-light);
   border-radius: var(--radius-md);
   padding: 0.8rem 1rem;
   transition: border-color 0.18s ease;
+  will-change: transform;
+  cursor: grab;
+  user-select: none;
 }
 .log-card:hover { border-color: var(--slate); }
 
@@ -83,7 +111,6 @@
   gap: 0.5rem;
   margin-bottom: 0.4rem;
 }
-
 .log-card-left {
   display: flex;
   align-items: center;
@@ -92,7 +119,6 @@
   flex: 1;
   min-width: 0;
 }
-
 .log-date {
   font-size: 0.82rem;
   font-weight: 600;
@@ -100,7 +126,7 @@
   white-space: nowrap;
 }
 
-/* Type badges — colour per type */
+/* ── Type badges ──────────────────────────────────────────────────── */
 .log-type-badge {
   font-size: 0.68rem;
   font-weight: 700;
@@ -108,13 +134,12 @@
   padding: 0.15rem 0.55rem;
   letter-spacing: 0.03em;
   white-space: nowrap;
-  color: var(--navy);
 }
-.log-type-call             { background: #5BA4CF; color: #fff; }
-.log-type-1-on-1           { background: var(--amber); }
-.log-type-small-group      { background: #74C69D; color: var(--navy); }
-.log-type-large-group      { background: #40916C; color: #fff; }
-.log-type-message          { background: var(--slate); color: #fff; }
+.log-type-call                    { background: #2171A8; color: #fff; }
+.log-type-1-on-1                  { background: #7B4F00; color: #FFD580; }
+.log-type-small-group             { background: #74C69D; color: #0D1B2A; }
+.log-type-large-group             { background: #40916C; color: #fff; }
+.log-type-message                 { background: #4A5B6E; color: #fff; }
 .log-type-birthday-acknowledgment { background: #E07B9A; color: #fff; }
 
 .log-people {
@@ -123,27 +148,19 @@
   color: var(--cream);
   line-height: 1.4;
 }
-
 .log-notes {
   font-size: 0.8rem;
   color: var(--fog);
   margin-top: 0.35rem;
   line-height: 1.5;
   white-space: pre-wrap;
-  /* Clamp to 3 lines with fade */
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-/* ── Action buttons ──────────────────────────────────────────────── */
-.log-card-actions {
-  display: flex;
-  gap: 0.3rem;
-  flex-shrink: 0;
-}
-
+/* ── Edit button (only action button on card) ─────────────────────── */
 .log-action-btn {
   background: none;
   border: 1.5px solid var(--navy-light);
@@ -159,23 +176,24 @@
   transition: all 0.18s ease;
   font-family: inherit;
   padding: 0;
+  flex-shrink: 0;
 }
-.log-edit-btn:hover   { border-color: var(--amber); color: var(--amber); }
-.log-delete-btn:hover { border-color: var(--red);   color: var(--red); }
+.log-edit-btn:hover { border-color: var(--amber); color: var(--amber); }
 
-/* ── Modal additions ─────────────────────────────────────────────── */
-.modal-wide { max-width: 420px; }
-.modal-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--cream);
-  margin-bottom: 1rem;
+/* ── Edit modal people search ─────────────────────────────────────── */
+#log-edit-people-results {
+  background: var(--navy-mid);
+  border: 1.5px solid var(--navy-light);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  max-height: 180px;
+  overflow-y: auto;
 }
-.modal-submsg {
-  font-size: 0.82rem;
-  color: var(--fog);
-  margin-top: 0.3rem;
-}
+
+/* ── Modal additions ──────────────────────────────────────────────── */
+.modal-wide  { max-width: 420px; }
+.modal-title { font-size: 1rem; font-weight: 700; color: var(--cream); margin-bottom: 1rem; }
+.modal-submsg { font-size: 0.82rem; color: var(--fog); margin-top: 0.3rem; }
 
 @media (min-width: 480px) {
   .log-list { padding: 0.8rem 1.5rem; }
