@@ -1,0 +1,182 @@
+/* encounters-log.css */
+
+/* ── Filters row ────────────────────────────────────────────────── */
+.log-search-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.6rem;
+}
+
+.log-filters {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 0.6rem;
+}
+
+.log-filter-select {
+  background: var(--navy-mid);
+  border: 1.5px solid var(--navy-light);
+  border-radius: var(--radius-md);
+  color: var(--fog);
+  font-size: 0.82rem;
+  font-family: inherit;
+  padding: 0.5rem 1.8rem 0.5rem 0.7rem;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%234A5B6E'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+  transition: border-color 0.18s ease;
+}
+.log-filter-select:focus { outline: none; border-color: var(--amber); }
+
+.log-sort-dir-btn {
+  background: var(--navy-mid);
+  border: 1.5px solid var(--navy-light);
+  border-radius: var(--radius-md);
+  color: var(--fog);
+  font-size: 1rem;
+  padding: 0.5rem 0.7rem;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  font-family: inherit;
+  flex-shrink: 0;
+}
+.log-sort-dir-btn:hover { border-color: var(--amber); color: var(--amber); }
+
+/* ── Log list ────────────────────────────────────────────────────── */
+.log-list {
+  padding: 0.8rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.log-loading {
+  text-align: center;
+  color: var(--fog);
+  font-size: 0.9rem;
+  padding: 2rem 0;
+}
+.log-error { color: #e8a09a; }
+
+/* ── Log card ────────────────────────────────────────────────────── */
+.log-card {
+  background: var(--navy-mid);
+  border: 1.5px solid var(--navy-light);
+  border-radius: var(--radius-md);
+  padding: 0.8rem 1rem;
+  transition: border-color 0.18s ease;
+}
+.log-card:hover { border-color: var(--slate); }
+
+.log-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.log-card-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.log-date {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--fog);
+  white-space: nowrap;
+}
+
+/* Type badges — colour per type */
+.log-type-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  padding: 0.15rem 0.55rem;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  color: var(--navy);
+}
+.log-type-call             { background: #5BA4CF; color: #fff; }
+.log-type-1-on-1           { background: var(--amber); }
+.log-type-small-group      { background: #74C69D; color: var(--navy); }
+.log-type-large-group      { background: #40916C; color: #fff; }
+.log-type-message          { background: var(--slate); color: #fff; }
+.log-type-birthday-acknowledgment { background: #E07B9A; color: #fff; }
+
+.log-people {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--cream);
+  line-height: 1.4;
+}
+
+.log-notes {
+  font-size: 0.8rem;
+  color: var(--fog);
+  margin-top: 0.35rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  /* Clamp to 3 lines with fade */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── Action buttons ──────────────────────────────────────────────── */
+.log-card-actions {
+  display: flex;
+  gap: 0.3rem;
+  flex-shrink: 0;
+}
+
+.log-action-btn {
+  background: none;
+  border: 1.5px solid var(--navy-light);
+  border-radius: var(--radius-sm);
+  color: var(--slate);
+  font-size: 0.85rem;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  font-family: inherit;
+  padding: 0;
+}
+.log-edit-btn:hover   { border-color: var(--amber); color: var(--amber); }
+.log-delete-btn:hover { border-color: var(--red);   color: var(--red); }
+
+/* ── Modal additions ─────────────────────────────────────────────── */
+.modal-wide { max-width: 420px; }
+.modal-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--cream);
+  margin-bottom: 1rem;
+}
+.modal-submsg {
+  font-size: 0.82rem;
+  color: var(--fog);
+  margin-top: 0.3rem;
+}
+
+@media (min-width: 480px) {
+  .log-list { padding: 0.8rem 1.5rem; }
+}

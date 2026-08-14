@@ -85,7 +85,7 @@ async function boot() {
   if (typeof SUPABASE_URL==='undefined'||SUPABASE_URL==='YOUR_SUPABASE_URL') {
     showAuthError('Fill in SUPABASE_URL and SUPABASE_ANON in config.js'); return;
   }
-  try { supabase=createClient(SUPABASE_URL,SUPABASE_ANON); }
+  try { supabase=createClient(SUPABASE_URL,SUPABASE_ANON); window._plSupabase=supabase; }
   catch(e) { showAuthError('Failed to connect: '+e.message); return; }
   const {data:{session},error}=await supabase.auth.getSession();
   if (error) { showAuthError('Session error: '+error.message); return; }
@@ -288,7 +288,7 @@ function handleSearchKey(e) {
   else if (e.key==='ArrowUp') { e.preventDefault(); searchHighlight=Math.max(searchHighlight-1,0); }
   else if (e.key==='Enter') {
     e.preventDefault();
-    const t=searchHighlight>=0?items[searchHighlight]:items[0];
+    const t=searchHighlight>=0?items[searchHighlight]:items[items.length-1];
     if (!t) return;
     if (t.classList.contains('search-add-new')) goAddNewFromSearch(t.dataset.addname);
     else addPerson(t.dataset.id,t.dataset.name);
@@ -613,6 +613,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('search-input').addEventListener('input',handleSearchInput);
   document.getElementById('search-input').addEventListener('keydown',handleSearchKey);
   document.querySelectorAll('.type-btn').forEach(btn=>btn.addEventListener('click',handleTypeClick));
+  document.getElementById('log-btn').addEventListener('click',()=>{ window.openLogScreen && window.openLogScreen(); });
   document.getElementById('add-person-btn').addEventListener('click',()=>openPeopleScreen());
   document.getElementById('btn-today').addEventListener('click',()=>{
     document.getElementById('date-input').value=todayISO();

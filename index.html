@@ -28,7 +28,7 @@
         <div id="auth-error" class="auth-error hidden"></div>
         <button id="auth-btn" class="btn-primary">Sign In</button>
       </div>
-      <p class="version-tag">v1.6 &middot; Aug 2026</p>
+      <p class="version-tag">v1.7 &middot; Aug 2026</p>
     </div>
   </div>
 
@@ -38,6 +38,7 @@
     <header class="app-header">
       <span class="header-logo-mark">PL</span>
       <h1 class="header-title">Personal Log</h1>
+      <button class="btn-icon" id="log-btn" title="View encounter log">&#x1F4CB;</button>
       <button class="btn-icon" id="add-person-btn" title="Add / edit person">&#x1F464;+</button>
       <button class="header-sign-out" id="sign-out-btn" title="Sign out">&#x21A9;</button>
     </header>
@@ -207,8 +208,95 @@
     <div style="height:3rem"></div>
   </div>
 
+
+  <!-- ENCOUNTERS LOG SCREEN -->
+  <div id="log-screen" class="screen">
+    <header class="app-header">
+      <button class="btn-icon" id="log-back-btn" title="Back">&#x2190;</button>
+      <h1 class="header-title">Encounter Log</h1>
+      <div style="width:36px"></div>
+    </header>
+
+    <section class="section">
+      <div class="log-search-row">
+        <div class="search-wrap" style="flex:1">
+          <span class="search-icon">&#x2315;</span>
+          <input class="search-input" id="log-search-input" type="search"
+            placeholder="Search names, notes, type..." autocomplete="off" spellcheck="false" />
+        </div>
+      </div>
+
+      <div class="log-filters" id="log-filters">
+        <select class="log-filter-select" id="log-filter-type">
+          <option value="">All types</option>
+          <option value="call">Call</option>
+          <option value="1-on-1">1-on-1</option>
+          <option value="small-group">Small group</option>
+          <option value="large-group">Large group</option>
+          <option value="message">Message</option>
+          <option value="birthday-acknowledgment">Birthday</option>
+        </select>
+        <select class="log-filter-select" id="log-sort-col">
+          <option value="date">Sort: Date</option>
+          <option value="type">Sort: Type</option>
+          <option value="people">Sort: People</option>
+        </select>
+        <button class="log-sort-dir-btn" id="log-sort-dir" title="Toggle sort direction">&#x2193;</button>
+      </div>
+    </section>
+
+    <div id="log-list" class="log-list">
+      <div class="log-loading">Loading...</div>
+    </div>
+
+    <!-- EDIT MODAL -->
+    <div id="log-edit-modal" class="modal-backdrop hidden">
+      <div class="modal modal-wide">
+        <h2 class="modal-title">Edit Encounter</h2>
+        <div class="field-group" style="margin-bottom:0.8rem">
+          <label class="field-label">Date</label>
+          <input class="field-input" id="log-edit-date" type="date" />
+        </div>
+        <div class="field-group" style="margin-bottom:0.8rem">
+          <label class="field-label">Type</label>
+          <select class="field-input field-select" id="log-edit-type">
+            <option value="call">Call</option>
+            <option value="1-on-1">1-on-1</option>
+            <option value="small-group">Small group</option>
+            <option value="large-group">Large group</option>
+            <option value="message">Message</option>
+            <option value="birthday-acknowledgment">Birthday</option>
+          </select>
+        </div>
+        <div class="field-group" style="margin-bottom:1rem">
+          <label class="field-label">Notes</label>
+          <textarea class="notes-input" id="log-edit-notes" rows="4"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary" id="log-edit-cancel">Cancel</button>
+          <button class="btn-primary" id="log-edit-save" style="flex:1">Save Changes</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DELETE CONFIRM MODAL -->
+    <div id="log-delete-modal" class="modal-backdrop hidden">
+      <div class="modal">
+        <p class="modal-msg" id="log-delete-msg">Delete this encounter?</p>
+        <p class="modal-submsg">This cannot be undone.</p>
+        <div class="modal-actions" style="margin-top:1rem">
+          <button class="btn-secondary" id="log-delete-cancel">Cancel</button>
+          <button class="btn-danger" id="log-delete-confirm">Delete</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <link rel="stylesheet" href="encounters-log.css" />
   <script src="config.js"></script>
   <script type="module" src="app.js"></script>
+  <script type="module" src="encounters-log.js"></script>
 
 </body>
 </html>
