@@ -25,9 +25,7 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: |
-          cd .github/scripts
-          npm install
+        run: npm install --prefix daily-brief
 
       - name: Generate and send daily brief
         env:
@@ -38,4 +36,4 @@ jobs:
           SMTP_USER:         ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD:     ${{ secrets.SMTP_PASSWORD }}
           RECIPIENT_EMAIL:   justininoz@gmail.com
-        run: node .github/scripts/daily-brief.js
+        run: node daily-brief/daily-brief.js
