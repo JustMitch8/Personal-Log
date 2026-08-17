@@ -61,6 +61,8 @@ function formatDateShort(date) {
 
 // ── Supabase auth + query ─────────────────────────────────────────
 async function fetchData() {
+  // Small delay to avoid 'JWT issued at future' clock skew errors
+  await new Promise(r => setTimeout(r, 3000));
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
     realtime: { transport: ws }
   });
