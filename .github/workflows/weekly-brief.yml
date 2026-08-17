@@ -1,0 +1,36 @@
+name: Weekly Contact Report
+
+on:
+  schedule:
+    # 5PM Friday Melbourne (AEST UTC+10): 7AM Friday UTC
+    # During AEDT (Oct-Apr, UTC+11): fires at 6PM — acceptable drift
+    - cron: '0 7 * * 5'
+  workflow_dispatch:
+
+jobs:
+  send-weekly-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install --prefix daily-brief
+
+      - name: Generate and send weekly report
+        env:
+          SUPABASE_URL:      ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON:     ${{ secrets.SUPABASE_ANON }}
+          SUPABASE_EMAIL:    ${{ secrets.SUPABASE_EMAIL }}
+          SUPABASE_PASSWORD: ${{ secrets.SUPABASE_PASSWORD }}
+          SMTP_USER:         ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD:     ${{ secrets.SMTP_PASSWORD }}
+          RECIPIENT_EMAIL:   justininoz@gmail.com
+        run: node daily-brief/weekly-brief.js
