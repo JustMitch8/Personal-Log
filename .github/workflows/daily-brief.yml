@@ -1,0 +1,41 @@
+name: Daily Contact Brief
+
+on:
+  schedule:
+    # 7PM Melbourne (AEDT UTC+11 in summer, AEST UTC+10 in winter)
+    # We schedule at 9AM UTC which is 7PM AEST (winter).
+    # GitHub Actions doesn't support dynamic timezone so we use AEST base.
+    # During AEDT (Oct-Apr) this fires at 8PM Melbourne — acceptable drift.
+    # For exact 7PM year-round, see note in script README.
+    - cron: '0 9 * * *'
+  workflow_dispatch: # allow manual trigger for testing
+
+jobs:
+  send-daily-brief:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          cd .github/scripts
+          npm install
+
+      - name: Generate and send daily brief
+        env:
+          SUPABASE_URL:      ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON:     ${{ secrets.SUPABASE_ANON }}
+          SUPABASE_EMAIL:    ${{ secrets.SUPABASE_EMAIL }}
+          SUPABASE_PASSWORD: ${{ secrets.SUPABASE_PASSWORD }}
+          SMTP_USER:         ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD:     ${{ secrets.SMTP_PASSWORD }}
+          RECIPIENT_EMAIL:   justininoz@gmail.com
+        run: node .github/scripts/daily-brief.js
