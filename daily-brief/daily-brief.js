@@ -6,6 +6,7 @@
 // ─────────────────────────────────────────────────────────────────
 
 const { createClient } = require('@supabase/supabase-js');
+const ws             = require('ws');
 const nodemailer       = require('nodemailer');
 const puppeteer        = require('puppeteer');
 
@@ -60,7 +61,9 @@ function formatDateShort(date) {
 
 // ── Supabase auth + query ─────────────────────────────────────────
 async function fetchData() {
-  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
+    realtime: { transport: ws }
+  });
 
   const { error: authError } = await supabase.auth.signInWithPassword({
     email: SUPABASE_EMAIL, password: SUPABASE_PASSWORD
