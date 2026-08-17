@@ -54,13 +54,20 @@ function esc(s) {
 
 // ── Supabase ──────────────────────────────────────────────────────
 async function fetchData() {
-  // Small delay to avoid 'JWT issued at future' clock skew errors
-  await new Promise(r => setTimeout(r, 3000));
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, { realtime:{ transport:ws } });
-  const { error:authErr } = await supabase.auth.signInWithPassword({
-    email:SUPABASE_EMAIL, password:SUPABASE_PASSWORD
-  });
-  if (authErr) throw new Error('Auth failed: '+authErr.message);
+
+  // Retry auth up to 3 times with increasing delay — handles JWT clock skew
+  let authErr;
+  for (const delay of [2000, 5000, 10000]) {
+    await new Promise(r => setTimeout(r, delay));
+    const result = await supabase.auth.signInWithPassword({
+      email:SUPABASE_EMAIL, password:SUPABASE_PASSWORD
+    });
+    if (!result.error) { authErr = null; break; }
+    authErr = result.error;
+    console.log(`Auth attempt failed (${authErr.message}), retrying...`);
+  }
+  if (authErr) throw new Error('Auth failed after retries: ' + authErr.message);
 
   const [
     {data:people,   error:e1},
