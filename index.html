@@ -28,7 +28,7 @@
         <div id="auth-error" class="auth-error hidden"></div>
         <button id="auth-btn" class="btn-primary">Sign In</button>
       </div>
-      <p class="version-tag">v1.8 &middot; Aug 2026</p>
+      <p class="version-tag">v1.9 &middot; Aug 2026</p>
     </div>
   </div>
 
@@ -38,6 +38,7 @@
     <header class="app-header">
       <span class="header-logo-mark">PL</span>
       <h1 class="header-title">Personal Log</h1>
+      <button class="btn-icon" id="dashboard-btn" title="Dashboard">&#x1F4CA;</button>
       <button class="btn-icon" id="log-btn" title="View encounter log">&#x1F4CB;</button>
       <button class="btn-icon" id="add-person-btn" title="Add / edit person">&#x1F464;+</button>
       <button class="header-sign-out" id="sign-out-btn" title="Sign out">&#x21A9;</button>
@@ -315,9 +316,28 @@
   </div>
 
   <link rel="stylesheet" href="encounters-log.css" />
+  <link rel="stylesheet" href="dashboard.css" />
+
+  <!-- DASHBOARD SCREEN -->
+  <div id="dashboard-screen" class="screen">
+
+    <header class="app-header">
+      <button class="btn-icon" id="dashboard-back-btn" title="Back">&#x2190;</button>
+      <h1 class="header-title">Dashboard</h1>
+      <div style="width:36px"></div>
+    </header>
+
+    <div id="dashboard-content">
+      <div class="dash-loading">Loading analytics&#x2026;</div>
+    </div>
+
+    <div class="dash-bottom-pad"></div>
+  </div>
+
   <script src="config.js"></script>
   <script type="module" src="app.js"></script>
   <script type="module" src="encounters-log.js"></script>
+  <script type="module" src="dashboard.js"></script>
 
 </body>
 </html>

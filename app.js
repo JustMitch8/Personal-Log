@@ -613,6 +613,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('search-input').addEventListener('input',handleSearchInput);
   document.getElementById('search-input').addEventListener('keydown',handleSearchKey);
   document.querySelectorAll('.type-btn').forEach(btn=>btn.addEventListener('click',handleTypeClick));
+  document.getElementById('dashboard-btn').addEventListener('click',()=>{ window.openDashboard && window.openDashboard(); });
   document.getElementById('log-btn').addEventListener('click',()=>{ window.openLogScreen && window.openLogScreen(); });
   document.getElementById('add-person-btn').addEventListener('click',()=>openPeopleScreen());
   document.getElementById('btn-today').addEventListener('click',()=>{
