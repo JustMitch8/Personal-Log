@@ -147,27 +147,25 @@ function computeAnalytics(people,encounters,participants){
   }
   const maxStackVal=Math.max(...weeklyStacks.map(w=>Math.max(w.total,w.uniquePeople)),1);
 
-  // Concentration curve — observed + target frequency per person
-  const personConcentration=people.map(p=>{
-    const obs=encounters.filter(e=>e.date>=twelveWkStart&&e.date<=todayISO&&(encPartsMap[e.id]||[]).includes(p.id)).length;
-    // target: encounters expected over 12 weeks = 84/interval
-    const target=p.contactintervaldays?+(84/p.contactintervaldays).toFixed(1):0;
-    return {name:p.name,obs,target};
-  }).filter(p=>p.obs>0||p.target>0).sort((a,b)=>b.obs-a.obs);
+  // Social breadth scatter: actual vs expected encounters per person over 12 weeks
+  // Observed: sorted descending independently
+  const obsPoints=people.map(p=>({
+    name:p.name,
+    count:encounters.filter(e=>e.date>=twelveWkStart&&e.date<=todayISO&&(encPartsMap[e.id]||[]).includes(p.id)).length,
+  })).filter(p=>p.count>0).sort((a,b)=>b.count-a.count);
 
-  const totalObs=personConcentration.reduce((s,p)=>s+p.obs,0)||1;
-  let cumObs=0,cumTarget=0;
-  const concentrationCurve=personConcentration.map((p,i)=>{
-    cumObs+=p.obs;
-    cumTarget+=p.target;
-    return {
-      name:p.name,rank:i+1,
-      peoplePct:Math.round(((i+1)/personConcentration.length)*100),
-      obsCumPct:Math.round((cumObs/totalObs)*100),
-      // target line: cumulative target as % of total obs (same scale)
-      targetCumPct:Math.min(Math.round((cumTarget/totalObs)*100),100),
-    };
-  });
+  // Expected: 84/interval for people with interval, sorted descending independently
+  const expPoints=people.filter(p=>p.contactintervaldays).map(p=>({
+    name:p.name,
+    count:+(84/p.contactintervaldays).toFixed(1),
+  })).sort((a,b)=>b.count-a.count);
+
+  const scatterMaxY=Math.max(
+    obsPoints.length?obsPoints[0].count:0,
+    expPoints.length?expPoints[0].count:0,
+    1
+  );
+  const scatterN=Math.max(obsPoints.length,expPoints.length,1);
 
   // Goals achievability
   const peopleWithInterval=people.filter(p=>p.contactintervaldays);
@@ -274,7 +272,7 @@ function computeAnalytics(people,encounters,participants){
     weekTypeCounts,avgTypeCounts,
     weekPeopleCount,personWeeklyAvg,personMap,newPeople,
     weeklyStacks,maxStackVal,
-    concentrationCurve,
+    obsPoints,expPoints,scatterMaxY,scatterN,
     requiredPerDay,requiredPerWeek,peopleWithInterval,
     actualPerDay7:actualPPD(7),actualPerDay30:actualPPD(30),actualPerDay90:actualPPD(90),
     rhythmBuckets,totalPeople,totalWithInterval,recommendations,
@@ -387,36 +385,57 @@ function renderDashboard(a,people){
     <div class="dash-legend" style="margin-left:28px">${legend}</div>`;
   }
 
-  // ── Concentration curve with two lines + axes
+  // ── Social breadth scatter
   function curveHTML(){
-    if(!a.concentrationCurve.length) return '<div class="dash-empty">Not enough data yet.</div>';
-    // SVG-style using absolute-positioned dots connected by a gradient
-    const obsDots=a.concentrationCurve.map(p=>
-      `<div class="dash-curve-dot dash-curve-obs" style="left:${p.peoplePct}%;bottom:${p.obsCumPct}%" title="${esc(p.name)}: ${p.obsCumPct}% observed"></div>`
+    if(!a.obsPoints.length&&!a.expPoints.length) return '<div class="dash-empty">Not enough data yet.</div>';
+    const maxY=a.scatterMaxY;
+    const n=a.scatterN;
+
+    // Y axis: 4 marks from 0 to maxY
+    const yStep=Math.ceil(maxY/3);
+    const yMarks=[0,yStep,yStep*2,maxY].filter((v,i,arr)=>arr.indexOf(v)===i).map(v=>
+      `<div class="dash-curve-y-mark" style="bottom:${Math.round((v/maxY)*100)}%"><span>${v}</span></div>`
     ).join('');
-    const targetDots=a.concentrationCurve.map(p=>
-      `<div class="dash-curve-dot dash-curve-target" style="left:${p.peoplePct}%;bottom:${p.targetCumPct}%" title="${esc(p.name)}: ${p.targetCumPct}% target"></div>`
-    ).join('');
-    // Y axis marks
-    const yMarks=[0,25,50,75,100].map(v=>
-      `<div class="dash-curve-y-mark" style="bottom:${v}%"><span>${v}%</span></div>`
-    ).join('');
-    // X axis marks
-    const xMarks=[0,25,50,75,100].map(v=>
-      `<div class="dash-curve-x-mark" style="left:${v}%"><span>${v}%</span></div>`
-    ).join('');
-    return `<div class="dash-curve-outer">
-      <div class="dash-curve-y-axis">${yMarks}</div>
-      <div style="flex:1;min-width:0">
-        <div class="dash-curve-wrap">${obsDots}${targetDots}</div>
-        <div class="dash-curve-x-axis">${xMarks}</div>
+
+    // Dots: x position = rank/total across shared x-axis width
+    const obsDots=a.obsPoints.map((p,i)=>{
+      const x=n>1?Math.round((i/(n-1))*100):50;
+      const y=Math.round((p.count/maxY)*100);
+      return `<div class="dash-curve-dot dash-curve-obs" style="left:${x}%;bottom:${y}%" title="${esc(p.name)}: ${p.count} encounters"></div>`;
+    }).join('');
+
+    const expDots=a.expPoints.map((p,i)=>{
+      const x=n>1?Math.round((i/(n-1))*100):50;
+      const y=Math.round((p.count/maxY)*100);
+      return `<div class="dash-curve-dot dash-curve-target" style="left:${x}%;bottom:${y}%" title="${esc(p.name)}: ${p.count.toFixed(1)} expected"></div>`;
+    }).join('');
+
+    // X-axis ticks — rank numbers evenly spaced
+    const xTickCount=Math.min(n,6);
+    const xTicks=Array.from({length:xTickCount},(_,i)=>{
+      const rank=Math.round((i/(xTickCount-1))*(n-1))+1;
+      const pct=n>1?Math.round(((rank-1)/(n-1))*100):0;
+      return `<div class="dash-curve-x-mark" style="left:${pct}%"><span>${rank}</span></div>`;
+    }).join('');
+
+    // Y-axis label (rotated)
+    const yAxisLabel=`<div class="dash-curve-y-title">Encounters (12 wks)</div>`;
+
+    return `<div style="display:flex;align-items:center;gap:2px">
+      ${yAxisLabel}
+      <div class="dash-curve-outer" style="flex:1">
+        <div class="dash-curve-y-axis">${yMarks}</div>
+        <div style="flex:1;min-width:0">
+          <div class="dash-curve-wrap">${obsDots}${expDots}</div>
+          <div class="dash-curve-x-axis" style="position:relative;height:16px">${xTicks}</div>
+          <div style="font-size:0.55rem;color:var(--slate);text-align:center;margin-top:1px">Rank (each series sorted independently, most &#x2192; least)</div>
+        </div>
       </div>
     </div>
     <div class="dash-curve-legend">
-      <span><span class="dash-curve-dot dash-curve-obs" style="position:relative;display:inline-block;width:8px;height:8px;vertical-align:middle;bottom:auto;left:auto"></span> Observed frequency</span>
-      <span><span class="dash-curve-dot dash-curve-target" style="position:relative;display:inline-block;width:8px;height:8px;vertical-align:middle;bottom:auto;left:auto"></span> Target frequency</span>
-    </div>
-    <div class="dash-curve-note">% of people (x) vs % of total encounters (y). Steep = concentrated.</div>`;
+      <span><span class="dash-curve-dot dash-curve-obs" style="position:relative;display:inline-block;width:8px;height:8px;vertical-align:middle;bottom:auto;left:auto"></span> Actual (12 wks)</span>
+      <span><span class="dash-curve-dot dash-curve-target" style="position:relative;display:inline-block;width:8px;height:8px;vertical-align:middle;bottom:auto;left:auto"></span> Expected (12 wks, ranked separately)</span>
+    </div>`;
   }
 
   // ── Rhythm bars

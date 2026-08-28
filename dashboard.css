@@ -503,3 +503,15 @@
 @media (min-width: 480px) {
   .dash-kpi-row { padding: 0.5rem 1.5rem 0; }
 }
+
+/* ── Scatter Y-axis rotated title ─────────────────────────────── */
+.dash-curve-y-title {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 0.55rem;
+  color: var(--slate);
+  white-space: nowrap;
+  flex-shrink: 0;
+  text-align: center;
+  letter-spacing: 0.04em;
+}
