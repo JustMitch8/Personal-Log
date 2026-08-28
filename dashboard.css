@@ -313,3 +313,193 @@
   .dash-card { margin-left: 1.5rem; margin-right: 1.5rem; }
   .dash-two-col { padding: 0 1.5rem; }
 }
+
+/* ── KPI row ──────────────────────────────────────────────────── */
+.dash-kpi-row {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem 1.2rem 0;
+}
+.dash-kpi-box {
+  flex: 1;
+  background: var(--navy-mid);
+  border: 1.5px solid var(--navy-light);
+  border-radius: var(--radius-md);
+  padding: 0.7rem 0.8rem;
+  min-width: 0;
+}
+.dash-kpi-val {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--cream);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.dash-kpi-lbl {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fog);
+  margin-top: 3px;
+}
+.dash-kpi-delta {
+  font-size: 0.68rem;
+  font-weight: 700;
+  margin-top: 4px;
+}
+.kpi-up { color: #74c69d; }
+.kpi-dn { color: #e8a09a; }
+.dash-kpi-avg {
+  font-size: 0.6rem;
+  color: var(--slate);
+  margin-top: 2px;
+}
+.dash-kpi-new { border-color: rgba(212,168,85,0.3); }
+.dash-kpi-names {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 4px;
+}
+.dash-kpi-names span {
+  font-size: 0.65rem;
+  color: var(--amber);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Target line on people bar (green) ───────────────────────── */
+.dash-bar-target {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: #2D9E5F;
+  border-radius: 1px;
+  z-index: 3;
+}
+
+/* ── Chart axes ───────────────────────────────────────────────── */
+.dash-chart-wrap {
+  display: flex;
+  gap: 4px;
+  align-items: flex-end;
+}
+.dash-y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 130px;
+  width: 24px;
+  flex-shrink: 0;
+  align-items: flex-end;
+  padding-right: 4px;
+}
+.dash-y-axis span {
+  font-size: 0.55rem;
+  color: var(--slate);
+  line-height: 1;
+}
+.dash-x-axis-line {
+  height: 1px;
+  background: var(--navy-light);
+  margin-top: 2px;
+}
+
+/* ── Concentration curve with axes ───────────────────────────── */
+.dash-curve-outer {
+  display: flex;
+  gap: 4px;
+  align-items: stretch;
+}
+.dash-curve-y-axis {
+  width: 28px;
+  flex-shrink: 0;
+  position: relative;
+  height: 120px;
+}
+.dash-curve-y-mark {
+  position: absolute;
+  right: 4px;
+  transform: translateY(50%);
+  font-size: 0.55rem;
+  color: var(--slate);
+  white-space: nowrap;
+}
+.dash-curve-wrap {
+  position: relative;
+  height: 120px;
+  border-left: 1px solid var(--navy-light);
+  border-bottom: 1px solid var(--navy-light);
+  background: var(--navy);
+  border-radius: 0 0 0 2px;
+  flex: 1;
+}
+.dash-curve-dot {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  transform: translate(-50%, 50%);
+}
+.dash-curve-obs    { background: var(--amber); }
+.dash-curve-target { background: #2D9E5F; }
+.dash-curve-x-axis {
+  position: relative;
+  height: 16px;
+  margin-left: 0;
+}
+.dash-curve-x-mark {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 0.55rem;
+  color: var(--slate);
+  top: 2px;
+}
+.dash-curve-legend {
+  display: flex;
+  gap: 1rem;
+  margin: 6px 0 4px 28px;
+  font-size: 0.65rem;
+  color: var(--fog);
+  align-items: center;
+}
+.dash-curve-note {
+  font-size: 0.62rem;
+  color: var(--slate);
+  font-style: italic;
+  margin-left: 28px;
+}
+
+/* ── Rhythm stats row ─────────────────────────────────────────── */
+.dash-rhythm-stats {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  font-size: 0.7rem;
+  color: var(--fog);
+  margin-bottom: 0.7rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--navy-light);
+}
+
+/* ── Birthday subheadings ─────────────────────────────────────── */
+.dash-bd-subhead {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--slate);
+  margin: 0.6rem 0 0.3rem;
+}
+.dash-bd-fraction {
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+@media (min-width: 480px) {
+  .dash-kpi-row { padding: 0.5rem 1.5rem 0; }
+}
