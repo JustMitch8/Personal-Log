@@ -48,31 +48,53 @@ export async function initNotifications() {
 }
 
 async function ensureSubscribed(reg) {
-  const db = window._plSupabase;
-  if (!db) return;
+  const btn = document.getElementById('notif-enable-btn');
+
+  // Wait up to 10s for Supabase client to be ready
+  let db = null;
+  for (let i = 0; i < 20; i++) {
+    if (window._plSupabase) { db = window._plSupabase; break; }
+    await new Promise(r => setTimeout(r, 500));
+  }
+
+  if (!db) {
+    console.warn('Push: Supabase not ready after 10s');
+    alert('Could not connect to database. Please try again after logging in.');
+    return;
+  }
 
   try {
     // Get or create push subscription
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
+      console.log('Push: creating new subscription...');
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
       });
     }
+    console.log('Push: subscription endpoint:', sub.endpoint.slice(0, 60) + '...');
 
     const subJson = sub.toJSON();
 
     // Upsert into Supabase push_subscriptions table
-    // Use endpoint as unique key — one row per device
-    await db.from('push_subscriptions').upsert({
+    const { error } = await db.from('push_subscriptions').upsert({
       endpoint:   subJson.endpoint,
       p256dh:     subJson.keys.p256dh,
       auth:       subJson.keys.auth,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'endpoint' });
 
+    if (error) {
+      console.error('Push: Supabase upsert failed:', error.message);
+      alert('Notification registered but failed to save: ' + error.message);
+    } else {
+      console.log('Push: subscription saved to Supabase successfully');
+      alert('Daily notifications enabled! You'll receive your first reminder at 6:43PM.');
+    }
+
   } catch(e) {
-    console.warn('Push subscription failed:', e);
+    console.error('Push subscription error:', e.message);
+    alert('Notification setup failed: ' + e.message);
   }
 }
