@@ -33,6 +33,7 @@ export async function initNotifications() {
 
   if (Notification.permission === 'granted') {
     btn.style.display = 'none';
+    // Always re-subscribe on load to ensure Supabase has the current endpoint
     await ensureSubscribed(reg);
   } else if (Notification.permission === 'denied') {
     btn.style.display = 'none';
