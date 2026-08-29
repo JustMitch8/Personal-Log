@@ -178,13 +178,13 @@ function computeAnalytics(people,encounters,participants){
   }
 
   // Rhythm histogram + stats
-  const rhythmBuckets={ahead:0,onTrack:0,slightlyBehind:0,overdue:0,significantlyOverdue:0};
+  const rhythmBuckets={ahead:0,onTrack:0,slightlyBehind:0,overdue:0,significantlyOverdue:0,noEncounters:0};
   const totalPeople=people.length;
   const totalWithInterval=people.filter(p=>p.contactintervaldays).length;
   people.forEach(p=>{
     if(!p.contactintervaldays)return;
     const dates=(personEncsMap[p.id]||[]).map(id=>encMap[id]?.date).filter(Boolean).sort().reverse();
-    if(!dates.length)return;
+    if(!dates.length){rhythmBuckets.noEncounters++;return;}
     const daysSince=Math.round((todayDate-new Date(dates[0]+'T00:00:00'))/86400000);
     const ratio=daysSince/p.contactintervaldays;
     if(ratio<0.5)rhythmBuckets.ahead++;
@@ -440,13 +440,14 @@ function renderDashboard(a,people){
 
   // ── Rhythm bars
   function rhythmHTML(){
-    const total=Object.values(a.rhythmBuckets).reduce((s,v)=>s+v,0)||1;
+    const total=a.totalWithInterval||1; // denominator = all people with interval set
     const buckets=[
       {key:'ahead',label:'Well ahead',color:'#2D9E5F'},
       {key:'onTrack',label:'On track',color:'#40916C'},
       {key:'slightlyBehind',label:'Slightly behind',color:'#E07B2A'},
       {key:'overdue',label:'Overdue',color:'#C0392B'},
       {key:'significantlyOverdue',label:'Significantly overdue',color:'#7B0000'},
+      {key:'noEncounters',label:'No encounters recorded',color:'#2A3A4A'},
     ];
     const statsRow=`<div class="dash-rhythm-stats">
       <span>${a.totalPeople} total contacts</span>

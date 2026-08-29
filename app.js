@@ -1,4 +1,5 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { initNotifications } from './notifications.js';
 
 // ══ State ══════════════════════════════════════════════════════════
 let supabase        = null;
@@ -124,6 +125,7 @@ async function enterApp() {
   document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('active'));
   currentType=null;
   await loadData();
+  initNotifications(); // schedule daily reminder, non-blocking
 }
 
 // ══ Data loading ═══════════════════════════════════════════════════
