@@ -3,7 +3,7 @@ name: Daily Push Notification
 on:
   schedule:
     # 7PM AEST (UTC+10) = 9AM UTC. During AEDT (UTC+11) fires at 8PM — acceptable.
-    - cron: '0 9 * * *'
+    - cron: '43 8 * * *'
   workflow_dispatch:
 
 jobs:
