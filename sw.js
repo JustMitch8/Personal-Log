@@ -1,29 +1,22 @@
 // sw.js — Personal Log Service Worker
-// Handles background sync and scheduled daily notifications
+// Handles Web Push notifications delivered by GitHub Actions
 
 self.addEventListener('install', e => { self.skipWaiting(); });
 self.addEventListener('activate', e => { e.waitUntil(self.clients.claim()); });
 
-// Receive notification payload from the app
-self.addEventListener('message', e => {
-  if (e.data && e.data.type === 'SCHEDULE_NOTIFICATION') {
-    scheduleNotification(e.data.payload);
-  }
+// Handle incoming push from server
+self.addEventListener('push', e => {
+  const data = e.data ? e.data.json() : {};
+  const title = data.title || 'Personal Log';
+  const options = {
+    body:    data.body || 'Tap to log today\'s encounters.',
+    icon:    data.icon || './icon-192.png',
+    badge:   data.badge || './icon-192.png',
+    tag:     'pl-daily-reminder',
+    data:    { url: self.registration.scope },
+  };
+  e.waitUntil(self.registration.showNotification(title, options));
 });
-
-function scheduleNotification(payload) {
-  const { msUntil, title, body, tag } = payload;
-  setTimeout(() => {
-    self.registration.showNotification(title, {
-      body,
-      tag,          // prevents duplicate notifications with same tag
-      icon: '/Personal-Log/icon-192.png',
-      badge: '/Personal-Log/icon-192.png',
-      data: { url: self.registration.scope },
-      actions: [{ action: 'open', title: 'Log encounters' }],
-    });
-  }, msUntil);
-}
 
 // Tapping notification opens the app
 self.addEventListener('notificationclick', e => {
