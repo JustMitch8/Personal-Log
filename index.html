@@ -28,7 +28,7 @@
         <div id="auth-error" class="auth-error hidden"></div>
         <button id="auth-btn" class="btn-primary">Sign In</button>
       </div>
-      <p class="version-tag">v2.4 &middot; Aug 2026</p>
+      <p class="version-tag">v2.5 &middot; Aug 2026</p>
     </div>
   </div>
 
@@ -41,9 +41,19 @@
       <button class="btn-icon" id="dashboard-btn" title="Dashboard">&#x1F4CA;</button>
       <button class="btn-icon" id="log-btn" title="View encounter log">&#x1F4CB;</button>
       <button class="btn-icon" id="add-person-btn" title="Add / edit person">&#x1F464;+</button>
-      <button class="btn-icon notif-enable-btn" id="notif-enable-btn" title="Enable daily reminders" style="display:none">&#x1F514;</button>
       <button class="header-sign-out" id="sign-out-btn" title="Sign out">&#x21A9;</button>
     </header>
+
+    <!-- NOTIFICATION SETTINGS ROW -->
+    <div id="notif-settings-row" class="notif-row">
+      <span class="notif-row-label">&#x1F514; Daily reminders</span>
+      <span id="notif-toggle-label" class="notif-row-state">Off</span>
+      <label class="notif-switch">
+        <input type="checkbox" id="notif-toggle" />
+        <span class="notif-slider"></span>
+      </label>
+    </div>
+    <div id="notif-status" class="notif-status" style="display:none"></div>
 
     <!-- ENCOUNTER TYPE -->
     <section class="section">
