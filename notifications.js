@@ -2,7 +2,7 @@
 // Fully self-contained. Loaded as <script type="module"> from index.html.
 // Never blocks login or any other app flow.
 
-const VAPID_PUBLIC_KEY = 'BMQyZLpK24YSkTvXPucEgv7ao5KAG1DR7BnjhbgptutFTMlNd74TxslULNP0XPNB3DEPQ3WdlbzyinvzLPJdgHQ';
+const VAPID_PUBLIC_KEY = 'BEMprR9xp9R9EySfLv6YCSDfmyquJ0Nr_yxjtQ2qKm3b6srzuKoJaoiW8xVg-6WrsbFF1q5ZW2JhR4dFdt-RY3g';
 const STORAGE_KEY      = 'pl_notifications_enabled';
 
 // ── Helpers ────────────────────────────────────────────────────────
