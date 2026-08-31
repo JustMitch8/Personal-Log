@@ -2,14 +2,17 @@ name: Daily Push Notification
 
 on:
   schedule:
-    # 7PM AEST (UTC+10) = 9AM UTC. During AEDT (UTC+11) fires at 8PM — acceptable.
-    - cron: '43 8 * * *'
+    # 6:43PM AEST (UTC+10) = 08:43 UTC
+    # 6:43PM AEDT (UTC+11) = 07:43 UTC (Oct-Apr)
+    # Run both so it fires close to 6:43PM year-round
+    - cron: '43 8 * * *'   # AEST (winter)
+    - cron: '43 7 * * *'   # AEDT (summer)
   workflow_dispatch:
 
 jobs:
   send-notification:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
       - name: Checkout repo
