@@ -1,4 +1,5 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { writeIntervalChangeNote } from './utils.js';
 
 // ══ State ══════════════════════════════════════════════════════════
 let supabase        = null;
@@ -548,6 +549,9 @@ async function handlePeopleSave() {
   const stamp=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
 
   if (editingPerson) {
+    // Check if interval is changing so we can write an audit note
+    const oldInterval=editingPerson.contactintervaldays||null;
+    const intervalChanged=interval!==oldInterval;
     const payload={contactintervaldays:interval};
     if (!editingPerson.name||unlockedFields.has('name')) payload.name=name;
     if (!editingPerson.firstmet||unlockedFields.has('firstmet')) payload.firstmet=firstmet;
@@ -559,8 +563,17 @@ async function handlePeopleSave() {
       const appended=`[${stamp}] ${newNote}`;
       payload.notes=editingPerson.notes?editingPerson.notes+'\n\n'+appended:appended;
     }
-    const {error}=await supabase.from('people').update(payload).eq('id',editingPerson.id);
-    if (error) { showPeopleStatus('Error: '+error.message,'error'); btn.disabled=false; txt.textContent='Save Changes'; return; }
+    // If interval changed, use writeIntervalChangeNote to update + append audit note
+    let updateError;
+    if(intervalChanged&&oldInterval&&interval){
+      const {error,updatedNotes}=await writeIntervalChangeNote(supabase,editingPerson.id,oldInterval,interval,payload.notes||editingPerson.notes);
+      updateError=error;
+      if(!error) payload.notes=updatedNotes;
+    } else {
+      const {error}=await supabase.from('people').update(payload).eq('id',editingPerson.id);
+      updateError=error;
+    }
+    if (updateError) { showPeopleStatus('Error: '+updateError.message,'error'); btn.disabled=false; txt.textContent='Save Changes'; return; }
     editingPerson={...editingPerson,...payload};
     if (payload.notes) {
       const ex=document.getElementById('p-notes-existing');

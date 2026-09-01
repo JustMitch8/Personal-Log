@@ -515,3 +515,164 @@
   text-align: center;
   letter-spacing: 0.04em;
 }
+
+/* ─── TOUCH TOOLTIP ───────────────────────────────────────────── */
+.dash-bar-chart-wrap { position: relative; }
+.dash-tooltip {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-100%);
+  background: var(--navy);
+  border: 1.5px solid var(--amber);
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.7rem;
+  font-size: 0.72rem;
+  color: var(--cream);
+  line-height: 1.5;
+  white-space: nowrap;
+  z-index: 50;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+
+/* ─── TRAJECTORY TOOLTIP ──────────────────────────────────────── */
+#trajectory-tooltip {
+  background: var(--navy);
+  border: 1.5px solid var(--amber);
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.7rem;
+  font-size: 0.72rem;
+  color: var(--cream);
+  line-height: 1.5;
+  white-space: nowrap;
+  z-index: 50;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+
+/* ─── DETAIL PANELS ───────────────────────────────────────────── */
+.dash-detail-panel {
+  margin-top: 0.7rem;
+  background: var(--navy);
+  border: 1.5px solid var(--navy-light);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.dash-detail-header {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fog);
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid var(--navy-light);
+  background: var(--navy-mid);
+}
+.dash-detail-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0.45rem 0.8rem;
+  border-bottom: 1px solid var(--navy-light);
+  gap: 0.5rem;
+}
+.dash-detail-row:last-child { border-bottom: none; }
+.dash-detail-name { font-weight: 600; color: var(--cream); font-size: 0.85rem; }
+.dash-detail-stat { color: var(--fog); font-size: 0.72rem; text-align: right; }
+
+/* Trajectory detail */
+.dash-detail-type-header {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.5rem 0.8rem 0.2rem;
+  background: var(--navy-mid);
+}
+.dash-detail-enc-row {
+  padding: 0.4rem 0.8rem;
+  border-bottom: 1px solid var(--navy-light);
+}
+.dash-detail-enc-row:last-child { border-bottom: none; }
+.dash-detail-enc-date {
+  font-size: 0.65rem;
+  color: var(--fog);
+  margin-right: 0.5rem;
+}
+.dash-detail-enc-names {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--cream);
+}
+.dash-detail-enc-note {
+  font-size: 0.72rem;
+  color: var(--slate);
+  margin-top: 2px;
+  font-style: italic;
+  white-space: pre-wrap;
+}
+
+/* ─── SCATTER CROSSHAIR ───────────────────────────────────────── */
+.dash-scatter-crosshair {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255,255,255,0.4);
+  pointer-events: none;
+  z-index: 10;
+}
+.dash-scatter-info {
+  display: flex;
+  gap: 1rem;
+  margin-top: 6px;
+  font-size: 0.72rem;
+  flex-wrap: wrap;
+}
+.st-obs   { color: var(--amber); font-weight: 600; }
+.st-exp   { color: #2D9E5F;      font-weight: 600; }
+
+/* ─── SHOW MORE BUTTON ────────────────────────────────────────── */
+.dash-show-more {
+  display: block;
+  width: 100%;
+  text-align: center;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--navy-light);
+  color: var(--amber);
+  font-size: 0.78rem;
+  font-family: inherit;
+  padding: 0.55rem;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.dash-show-more:hover { background: var(--navy-light); }
+
+/* ─── RHYTHM BAR CLICKABLE ────────────────────────────────────── */
+.dash-rhythm-bar { transition: background var(--transition); border-radius: var(--radius-sm); }
+.dash-rhythm-bar:active { background: var(--navy-light); }
+
+/* ─── RECOMMENDATION CLICKABLE ────────────────────────────────── */
+.dash-rec-clickable {
+  cursor: pointer;
+  transition: background var(--transition);
+  position: relative;
+}
+.dash-rec-clickable:active { opacity: 0.8; }
+.dash-rec-tap-hint {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--amber);
+  margin-top: 3px;
+  opacity: 0.8;
+}
+
+/* ─── INTERVAL MODAL TITLE ────────────────────────────────────── */
+.modal-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--cream);
+  margin-bottom: 0.5rem;
+}
