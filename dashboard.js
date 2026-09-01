@@ -120,7 +120,7 @@ function computeAnalytics(people,encounters,participants){
   people.forEach(p=>{
     if(!p.contactintervaldays)return;
     const dates=(personEncsMap[p.id]||[]).map(id=>encMap[id]?.date).filter(Boolean).sort().reverse();
-    if(!dates.length){rhythmBuckets.noEncounters++;rhythmPeople.noEncounters.push({name:p.name,daysSince:null,ratio:null});return;}
+    if(!dates.length){rhythmBuckets.noEncounters++;rhythmPeople.noEncounters.push({id:p.id,name:p.name,daysSince:null,ratio:null});return;}
     const daysSince=Math.round((todayDate-new Date(dates[0]+'T00:00:00'))/86400000);
     const ratio=daysSince/p.contactintervaldays;
     let bucket;
@@ -130,7 +130,7 @@ function computeAnalytics(people,encounters,participants){
     else if(ratio<=2.0)bucket='overdue';
     else bucket='significantlyOverdue';
     rhythmBuckets[bucket]++;
-    rhythmPeople[bucket].push({name:p.name,daysSince,ratio,interval:p.contactintervaldays});
+    rhythmPeople[bucket].push({id:p.id,name:p.name,daysSince,ratio,interval:p.contactintervaldays});
   });
 
   const recommendations=[];
@@ -259,7 +259,25 @@ function makeTouchHandler(el, onScrub, onTap, onEnd) {
   el.addEventListener('touchcancel', ()=>{ active=false; if(onEnd) onEnd(); },{passive:true});
 }
 
-// ── Tooltip helpers ────────────────────────────────────────────────
+// ── Scroll-safe tap handler for list items ───────────────────────
+// Attaches to a container, fires callback only if touch didn't scroll
+// (moved less than 10px). Prevents mis-fires during page scroll.
+function makeListTapHandler(container, selector, callback) {
+  let startX, startY;
+  container.addEventListener('touchstart', e=>{
+    startX=e.touches[0].clientX;
+    startY=e.touches[0].clientY;
+  },{passive:true});
+  container.addEventListener('touchend', e=>{
+    const dx=Math.abs(e.changedTouches[0].clientX-startX);
+    const dy=Math.abs(e.changedTouches[0].clientY-startY);
+    if(dx>10||dy>10) return; // was a scroll, ignore
+    const target=e.target.closest(selector);
+    if(target) { e.preventDefault(); callback(target); }
+  },{passive:false});
+}
+
+// ── Tooltip helpers ───────────────────────────────────────────────────
 function showTooltip(el, html) {
   let tt = el.querySelector('.dash-tooltip');
   if(!tt){ tt=document.createElement('div'); tt.className='dash-tooltip'; el.appendChild(tt); }
@@ -501,13 +519,30 @@ function renderDashboard(a, people, encounters, participants) {
     const panel=document.getElementById('rhythm-detail');
     const people=a.rhythmPeople[bucketKey]||[];
     if(!people.length){panel.style.display='none';return;}
-    panel.innerHTML=`<div class="dash-detail-header">${esc(bucketLabels[bucketKey])} — ${people.length} contact${people.length!==1?'s':''}</div>`+
+    panel.innerHTML=`<div class="dash-detail-header">${esc(bucketLabels[bucketKey])} — ${people.length} contact${people.length!==1?'s':''} <span style="font-weight:400;font-size:0.65rem;opacity:0.7">Tap to edit interval</span></div>`+
       people.map(p=>{
-        if(p.daysSince===null) return `<div class="dash-detail-row"><span class="dash-detail-name">${esc(p.name)}</span><span class="dash-detail-stat">No encounters recorded</span></div>`;
-        return `<div class="dash-detail-row"><span class="dash-detail-name">${esc(p.name)}</span><span class="dash-detail-stat">${p.daysSince}d since last · ${Math.round(p.ratio*10)/10}× interval (${p.interval}d)</span></div>`;
+        const stat=p.daysSince===null?'No encounters recorded':`${p.daysSince}d since last · ${Math.round(p.ratio*10)/10}× interval (${p.interval}d)`;
+        return `<div class="dash-detail-row dash-rhythm-person" data-person-id="${p.id}" data-current="${p.interval||0}" style="cursor:pointer">
+          <span class="dash-detail-name">${esc(p.name)}</span>
+          <span class="dash-detail-stat">${stat} <span style="color:var(--amber);font-size:0.65rem">›</span></span>
+        </div>`;
       }).join('');
     panel.style.display='block';
     panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+
+    // Attach scroll-safe tap to open interval modal
+    makeListTapHandler(panel, '.dash-rhythm-person', target=>{
+      const personId=target.dataset.personId;
+      const current=+target.dataset.current;
+      const person=_allPeopleCache.find(p=>p.id===personId);
+      if(!person)return;
+      _intervalModalPerson={person,current,suggested:current};
+      document.getElementById('interval-modal-title').textContent=`Update: ${person.name}`;
+      document.getElementById('interval-modal-msg').textContent=`Current interval: ${current||'not set'} days.`;
+      document.getElementById('interval-modal-input').value=current||'';
+      document.getElementById('interval-modal-status').style.display='none';
+      document.getElementById('interval-modal').classList.remove('hidden');
+    });
   }
 
   // ── Write content
@@ -760,11 +795,13 @@ function renderDashboard(a, people, encounters, participants) {
   });
 
   // 6. Interval recommendation modal
-  document.querySelectorAll('.dash-rec-clickable').forEach(el=>{
-    const openModal=()=>{
-      const personId=el.dataset.personId;
-      const current=+el.dataset.current;
-      const suggested=+el.dataset.suggested;
+  // Recommendations: scroll-safe tap handler on the card container
+  const recCard=document.querySelector('.dash-card:has(.dash-rec-clickable)');
+  if(recCard){
+    makeListTapHandler(recCard, '.dash-rec-clickable', target=>{
+      const personId=target.dataset.personId;
+      const current=+target.dataset.current;
+      const suggested=+target.dataset.suggested;
       const person=_allPeopleCache.find(p=>p.id===personId);
       if(!person)return;
       _intervalModalPerson={person,current,suggested};
@@ -773,10 +810,8 @@ function renderDashboard(a, people, encounters, participants) {
       document.getElementById('interval-modal-input').value=suggested;
       document.getElementById('interval-modal-status').style.display='none';
       document.getElementById('interval-modal').classList.remove('hidden');
-    };
-    el.addEventListener('click',openModal);
-    el.addEventListener('touchend',e=>{e.preventDefault();openModal();},{passive:false});
-  });
+    });
+  }
 
   document.getElementById('interval-modal-cancel')?.addEventListener('click',()=>{
     document.getElementById('interval-modal').classList.add('hidden');
