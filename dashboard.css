@@ -676,3 +676,39 @@
   color: var(--cream);
   margin-bottom: 0.5rem;
 }
+
+/* ─── TRAJECTORY X-AXIS DIAGONAL LABELS ──────────────────────── */
+.traj-x-axis {
+  position: relative;
+}
+.traj-tick-wrap {
+  position: absolute;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  transform: translateX(-50%);
+}
+.traj-tick {
+  width: 1px;
+  height: 6px;
+  background: var(--navy-light);
+  margin-bottom: 2px;
+  flex-shrink: 0;
+}
+.traj-tick-label {
+  font-size: 0.5rem;
+  color: var(--fog);
+  white-space: nowrap;
+  transform: rotate(45deg);
+  transform-origin: top left;
+  line-height: 1;
+}
+.traj-tick-today .traj-tick {
+  background: var(--amber);
+  width: 2px;
+}
+.traj-tick-today .traj-tick-label {
+  color: var(--amber);
+  font-weight: 700;
+}

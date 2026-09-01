@@ -10,9 +10,17 @@ const MONTHS_LONG  = ['January','February','March','April','May','June','July','
 function db(){return window._plSupabase;}
 function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r;}
 function toISO(d){const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;}
-function formatShort(d){return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;}
+function formatShort(d){const p=n=>String(n).padStart(2,'0');return `${p(d.getDate())}-${MONTHS_SHORT[d.getMonth()]}`;}
 function formatMedium(d){return `${d.getDate()} ${MONTHS_LONG[d.getMonth()]}`;}
 function formatDow(d){return d.toLocaleDateString('en-AU',{weekday:'long'});}
+// Get the Monday on or before a given date
+function getMondayBefore(date) {
+  const d = new Date(date);
+  const day = d.getDay(); // 0=Sun,1=Mon...6=Sat
+  const diff = (day === 0) ? 6 : day - 1; // days since Monday
+  d.setDate(d.getDate() - diff);
+  return d;
+}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function seededRandom(seed){let h=0;for(let i=0;i<seed.length;i++)h=Math.imul(31,h)+seed.charCodeAt(i)|0;return function(){h=Math.imul(h^(h>>>16),0x45d9f3b)|0;h=Math.imul(h^(h>>>16),0x45d9f3b)|0;return((h^(h>>>16))>>>0)/4294967296;};}
 function seededShuffle(arr,s){const rng=seededRandom(s);const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
@@ -92,14 +100,29 @@ function computeAnalytics(people,encounters,participants){
 
   const newPeople=people.filter(p=>{const dates=(personEncsMap[p.id]||[]).map(id=>encMap[id]?.date).filter(Boolean).sort();return dates.length&&dates[0]>=weekStartISO&&dates[0]<=todayISO;});
 
-  const weeklyStacks=[];
-  for(let w=11;w>=0;w--){
-    const ws=w===0?weekStartISO:toISO(addDays(todayDate,-(w*7+6)));
-    const we=w===0?todayISO:toISO(addDays(todayDate,-(w*7)));
-    const wEncs=encounters.filter(e=>e.date>=ws&&e.date<=we);
-    const typeCounts={};ALL_TYPES.forEach(t=>{typeCounts[t]=wEncs.filter(e=>e.type===t).length;});
-    const pSet=new Set();wEncs.forEach(e=>(encPartsMap[e.id]||[]).forEach(pid=>pSet.add(pid)));
-    weeklyStacks.push({label:formatShort(new Date(ws)),total:wEncs.length,typeCounts,uniquePeople:pSet.size,isCurrentWeek:w===0,weekStartISO:ws,weekEndISO:we});
+  // Monday-anchored weekly stacks — go back 11 complete Mon-Sun weeks + current partial week
+  const thisMonday = getMondayBefore(todayDate);
+  const weeklyStacks = [];
+  for (let w = 11; w >= 0; w--) {
+    const mon = addDays(thisMonday, -(w * 7));
+    const sun = w === 0 ? todayDate : addDays(mon, 6); // current week ends today
+    const ws  = toISO(mon);
+    const we  = toISO(sun);
+    const wEncs = encounters.filter(e => e.date >= ws && e.date <= we);
+    const typeCounts = {};
+    ALL_TYPES.forEach(t => { typeCounts[t] = wEncs.filter(e => e.type === t).length; });
+    const pSet = new Set();
+    wEncs.forEach(e => (encPartsMap[e.id] || []).forEach(pid => pSet.add(pid)));
+    weeklyStacks.push({
+      label:        formatShort(mon),  // dd-MMM of Monday
+      endLabel:     formatShort(sun),  // dd-MMM of end (Sunday or today)
+      total:        wEncs.length,
+      typeCounts,
+      uniquePeople: pSet.size,
+      isCurrentWeek: w === 0,
+      weekStartISO: ws,
+      weekEndISO:   we,
+    });
   }
   const maxStackVal=Math.max(...weeklyStacks.map(w=>Math.max(w.total,w.uniquePeople)),1);
 
@@ -354,6 +377,7 @@ function renderDashboard(a, people, encounters, participants) {
   function stackedChartHTML(){
     const maxV=a.maxStackVal;
     const yMid=Math.round(maxV/2);
+    const n=a.weeklyStacks.length;
     const cols=a.weeklyStacks.map((w,i)=>{
       const totalH=Math.round((w.total/maxV)*120);
       const peopleH=Math.round((w.uniquePeople/maxV)*120);
@@ -363,19 +387,36 @@ function renderDashboard(a, people, encounters, participants) {
           <div class="dash-stack-bar" style="height:${totalH}px">${segs}</div>
           <div class="dash-stack-dot" style="bottom:${peopleH}px"></div>
         </div>
-        <div class="dash-stack-label">${w.label}</div>
       </div>`;
     }).join('');
+
+    // X-axis: tick marks between columns, labels diagonal below
+    // Tick is at left edge of each column = start of that week (Monday)
+    // Plus a final tick at the right edge for today
+    const ticksHTML = a.weeklyStacks.map((w,i)=>{
+      const pct = Math.round((i / n) * 100);
+      return `<div class="traj-tick-wrap" style="left:${pct}%">
+        <div class="traj-tick"></div>
+        <div class="traj-tick-label">${w.label}</div>
+      </div>`;
+    }).join('') +
+    // Final ticker for today (right edge)
+    `<div class="traj-tick-wrap traj-tick-today" style="left:100%">
+      <div class="traj-tick"></div>
+      <div class="traj-tick-label">${formatShort(a.todayDate)}</div>
+    </div>`;
+
     const legend=ALL_TYPES.map(t=>`<span class="dash-legend-item"><span class="dash-legend-dot" style="background:${TYPE_COLORS[t]}"></span>${TYPE_LABELS[t]}</span>`).join('');
     return `<div class="dash-chart-wrap" id="trajectory-chart-wrap">
       <div class="dash-y-axis"><span>${maxV}</span><span>${yMid}</span><span>0</span></div>
       <div style="flex:1;min-width:0;position:relative">
         <div class="dash-stack-wrap" id="trajectory-chart">${cols}</div>
         <div class="dash-x-axis-line"></div>
+        <div class="traj-x-axis" style="position:relative;height:52px;margin-top:2px">${ticksHTML}</div>
         <div class="dash-tooltip" id="trajectory-tooltip" style="display:none;position:absolute;top:0;left:50%;transform:translateX(-50%)"></div>
       </div>
     </div>
-    <div style="font-size:10px;color:#8A9BAC;margin:4px 0 4px 28px">&#9679; = unique people · Tap a column for details</div>
+    <div style="font-size:10px;color:#8A9BAC;margin:4px 0 4px 28px">&#9679; = unique people · Tap column for details</div>
     <div class="dash-legend" style="margin-left:28px">${legend}</div>
     <div id="trajectory-detail" class="dash-detail-panel" style="display:none"></div>`;
   }
@@ -386,8 +427,8 @@ function renderDashboard(a, people, encounters, participants) {
     const maxY=a.scatterMaxY;const n=a.scatterN;
     const yStep=Math.ceil(maxY/3);
     const yMarks=[0,yStep,yStep*2,maxY].filter((v,i,arr)=>arr.indexOf(v)===i).map(v=>`<div class="dash-curve-y-mark" style="bottom:${Math.round((v/maxY)*100)}%"><span>${v}</span></div>`).join('');
-    const obsDots=a.obsPoints.map((p,i)=>{const x=n>1?Math.round((i/(n-1))*100):50;const y=Math.round((p.count/maxY)*100);return `<div class="dash-curve-dot dash-curve-obs" style="left:${x}%;bottom:${y}%"></div>`;}).join('');
-    const expDots=a.expPoints.map((p,i)=>{const x=n>1?Math.round((i/(n-1))*100):50;const y=Math.round((p.count/maxY)*100);return `<div class="dash-curve-dot dash-curve-target" style="left:${x}%;bottom:${y}%"></div>`;}).join('');
+    const obsDots=a.obsPoints.map((p,i)=>{const x=n>1?Math.round((i/(n-1))*100):50;const y=Math.max(2,Math.round((p.count/maxY)*100));return `<div class="dash-curve-dot dash-curve-obs" style="left:${x}%;bottom:${y}%"></div>`;}).join('');
+    const expDots=a.expPoints.map((p,i)=>{const x=n>1?Math.round((i/(n-1))*100):50;const y=Math.max(2,Math.round((p.count/maxY)*100));return `<div class="dash-curve-dot dash-curve-target" style="left:${x}%;bottom:${y}%"></div>`;}).join('');
     const xTickCount=Math.min(n,6);
     const xTicks=Array.from({length:xTickCount},(_,i)=>{const rank=Math.round((i/(xTickCount-1))*(n-1))+1;const pct=n>1?Math.round(((rank-1)/(n-1))*100):0;return `<div class="dash-curve-x-mark" style="left:${pct}%"><span>${rank}</span></div>`;}).join('');
     return `<div style="display:flex;align-items:center;gap:2px">
@@ -533,12 +574,12 @@ function renderDashboard(a, people, encounters, participants) {
     // Attach scroll-safe tap to open interval modal
     makeListTapHandler(panel, '.dash-rhythm-person', target=>{
       const personId=target.dataset.personId;
-      const current=+target.dataset.current;
       const person=_allPeopleCache.find(p=>p.id===personId);
       if(!person)return;
+      const current=person.contactintervaldays||null;
       _intervalModalPerson={person,current,suggested:current};
       document.getElementById('interval-modal-title').textContent=`Update: ${person.name}`;
-      document.getElementById('interval-modal-msg').textContent=`Current interval: ${current||'not set'} days.`;
+      document.getElementById('interval-modal-msg').textContent=current?`Current interval: ${current} days.`:'No interval set.';
       document.getElementById('interval-modal-input').value=current||'';
       document.getElementById('interval-modal-status').style.display='none';
       document.getElementById('interval-modal').classList.remove('hidden');
@@ -730,7 +771,8 @@ function renderDashboard(a, people, encounters, participants) {
           (encs||[]).forEach(e=>{if(!byType[e.type])byType[e.type]=[];byType[e.type].push(e);});
           const uniquePeople=new Set((parts||[]).map(p=>p.personid));
 
-          let html=`<div class="dash-detail-header">${w.label} — ${(encs||[]).length} encounter${(encs||[]).length!==1?'s':''} · ${uniquePeople.size} unique people</div>`;
+          const weekRange=`${w.label} – ${w.endLabel}`;
+          let html=`<div class="dash-detail-header">${weekRange} — ${(encs||[]).length} encounter${(encs||[]).length!==1?'s':''} · ${uniquePeople.size} unique people</div>`;
           ALL_TYPES.forEach(t=>{
             const group=byType[t];if(!group||!group.length)return;
             html+=`<div class="dash-detail-type-header" style="color:${TYPE_COLORS[t]}">${TYPE_LABELS[t]} (${group.length})</div>`;
