@@ -28,7 +28,7 @@
         <div id="auth-error" class="auth-error hidden"></div>
         <button id="auth-btn" class="btn-primary">Sign In</button>
       </div>
-      <p class="version-tag">v2.8 &middot; Aug 2026</p>
+      <p class="version-tag">v2.9 &middot; Aug 2026</p>
     </div>
   </div>
 
@@ -334,9 +334,17 @@
 
     <header class="app-header">
       <button class="btn-icon" id="dashboard-back-btn" title="Back">&#x2190;</button>
-      <h1 class="header-title">Dashboard</h1>
+      <h1 class="header-title" id="dashboard-screen-title">Insights</h1>
       <div style="width:36px"></div>
     </header>
+
+    <!-- Segmented control -->
+    <div class="dash-seg-wrap">
+      <div class="dash-seg-control">
+        <button class="dash-seg-btn active" id="dash-seg-insights">Insights</button>
+        <button class="dash-seg-btn" id="dash-seg-goals">Goals</button>
+      </div>
+    </div>
 
     <div id="dashboard-content">
       <div class="dash-loading">Loading analytics&#x2026;</div>
@@ -349,7 +357,9 @@
   <script type="module" src="app.js"></script>
   <script type="module" src="encounters-log.js"></script>
   <script type="module" src="utils.js"></script>
+  <link rel="stylesheet" href="goals.css" />
   <script type="module" src="dashboard.js"></script>
+  <script type="module" src="goals.js"></script>
   <script type="module" src="notifications.js"></script>
 
 </body>

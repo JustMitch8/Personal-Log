@@ -32,7 +32,11 @@ let _allPeopleCache = [];
 // ── Entry point ────────────────────────────────────────────────────
 window.openDashboard = async function() {
   showScreen('dashboard-screen');
-  document.getElementById('dashboard-content').innerHTML='<div class="dash-loading">Loading analytics\u2026</div>';
+  // Reset seg to Insights
+  const _ib=document.getElementById('dash-seg-insights');const _gb=document.getElementById('dash-seg-goals');
+  if(_ib&&_gb){_ib.classList.add('active');_gb.classList.remove('active');}
+  const _t=document.getElementById('dashboard-screen-title');if(_t)_t.textContent='Insights';
+  document.getElementById('dashboard-content').innerHTML='<div class="dash-loading">Loading analytics…</div>';
   try {
     const {people,encounters,participants}=await fetchDashboardData();
     _allPeopleCache = people;
@@ -892,4 +896,20 @@ function renderDashboard(a, people, encounters, participants) {
 document.addEventListener('DOMContentLoaded',()=>{
   const btn=document.getElementById('dashboard-back-btn');
   if(btn)btn.addEventListener('click',()=>{document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById('app-screen').classList.add('active');});
+
+  // Segmented control
+  const insightsBtn=document.getElementById('dash-seg-insights');
+  const goalsBtn=document.getElementById('dash-seg-goals');
+  if(insightsBtn&&goalsBtn){
+    insightsBtn.addEventListener('click',()=>{
+      insightsBtn.classList.add('active');goalsBtn.classList.remove('active');
+      document.getElementById('dashboard-screen-title').textContent='Insights';
+      window.openDashboard();
+    });
+    goalsBtn.addEventListener('click',()=>{
+      goalsBtn.classList.add('active');insightsBtn.classList.remove('active');
+      document.getElementById('dashboard-screen-title').textContent='Goals';
+      window.openGoals && window.openGoals();
+    });
+  }
 });

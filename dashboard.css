@@ -712,3 +712,35 @@
   color: var(--amber);
   font-weight: 700;
 }
+
+/* ─── SEGMENTED CONTROL ───────────────────────────────────────── */
+.dash-seg-wrap {
+  padding: 0.6rem 1.2rem;
+  background: var(--navy);
+  border-bottom: 1px solid var(--navy-light);
+}
+.dash-seg-control {
+  display: flex;
+  background: var(--navy-mid);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  gap: 2px;
+}
+.dash-seg-btn {
+  flex: 1;
+  padding: 0.45rem 0;
+  border: none;
+  border-radius: calc(var(--radius-md) - 2px);
+  background: transparent;
+  color: var(--fog);
+  font-size: 0.82rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.dash-seg-btn.active {
+  background: var(--navy-light);
+  color: var(--cream);
+  font-weight: 600;
+}
