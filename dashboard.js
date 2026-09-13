@@ -30,20 +30,28 @@ let _intervalModalPerson = null;
 let _allPeopleCache = [];
 
 // ── Entry point ────────────────────────────────────────────────────
-window.openDashboard = async function() {
+window.openDashboard = async function(view) {
   showScreen('dashboard-screen');
-  // Reset seg to Insights
+  // Default to Goals view
   const _ib=document.getElementById('dash-seg-insights');const _gb=document.getElementById('dash-seg-goals');
-  if(_ib&&_gb){_ib.classList.add('active');_gb.classList.remove('active');}
-  const _t=document.getElementById('dashboard-screen-title');if(_t)_t.textContent='Insights';
-  document.getElementById('dashboard-content').innerHTML='<div class="dash-loading">Loading analytics…</div>';
-  try {
-    const {people,encounters,participants}=await fetchDashboardData();
-    _allPeopleCache = people;
-    const a=computeAnalytics(people,encounters,participants);
-    renderDashboard(a,people,encounters,participants);
-  } catch(e) {
-    document.getElementById('dashboard-content').innerHTML=`<div class="dash-loading dash-error">Failed to load: ${esc(e.message)}</div>`;
+  const _t=document.getElementById('dashboard-screen-title');
+  if(view==='insights'){
+    if(_ib&&_gb){_ib.classList.add('active');_gb.classList.remove('active');}
+    if(_t)_t.textContent='Insights';
+    document.getElementById('dashboard-content').innerHTML='<div class="dash-loading">Loading analytics…</div>';
+    try {
+      const {people,encounters,participants}=await fetchDashboardData();
+      _allPeopleCache = people;
+      const a=computeAnalytics(people,encounters,participants);
+      renderDashboard(a,people,encounters,participants);
+    } catch(e) {
+      document.getElementById('dashboard-content').innerHTML=`<div class="dash-loading dash-error">Failed to load: ${esc(e.message)}</div>`;
+    }
+  } else {
+    // Default: Goals
+    if(_ib&&_gb){_gb.classList.add('active');_ib.classList.remove('active');}
+    if(_t)_t.textContent='Goals';
+    window.openGoals && window.openGoals();
   }
 };
 
@@ -904,7 +912,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     insightsBtn.addEventListener('click',()=>{
       insightsBtn.classList.add('active');goalsBtn.classList.remove('active');
       document.getElementById('dashboard-screen-title').textContent='Insights';
-      window.openDashboard();
+      window.openDashboard('insights');
     });
     goalsBtn.addEventListener('click',()=>{
       goalsBtn.classList.add('active');insightsBtn.classList.remove('active');

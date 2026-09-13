@@ -193,58 +193,65 @@
   padding-bottom: 0.5rem;
 }
 
+/* Outer wrapper — position context, no overflow hidden */
 .goals-card {
   position: relative;
-  border-radius: var(--radius-md);
   aspect-ratio: 1;
   cursor: pointer;
-  overflow: hidden;
-  /* The background is the conic fill, set inline */
 }
 
-/* Border ring: 3px ring showing block elapsed % */
-.goals-card-border {
+/* Layer 1: Border ring (outermost) — amber conic showing % through block */
+.goals-card-border-ring {
   position: absolute;
-  inset: -3px;
-  border-radius: calc(var(--radius-md) + 3px);
+  inset: 0;
+  border-radius: var(--radius-md);
   z-index: 0;
-  /* conic-gradient set inline */
 }
 
-/* Inner card content — sits on top of the fill */
-.goals-card-inner {
+/* Layer 2: Pie chart fill — inset 3px inside border ring */
+.goals-card-pie {
   position: absolute;
-  inset: 3px; /* inside the border ring */
-  background: rgba(13,27,42,0.55);
-  border-radius: calc(var(--radius-md) - 1px);
+  inset: 3px;
+  border-radius: calc(var(--radius-md) - 2px);
+  z-index: 1;
+  /* background conic set inline */
+}
+
+/* Layer 3: Dark overlay for text readability — semi-transparent, inset 3px */
+/* Uses a radial gradient so pie colour shows through at edges */
+.goals-card-content {
+  position: absolute;
+  inset: 3px;
+  border-radius: calc(var(--radius-md) - 2px);
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  z-index: 1;
   padding: 4px;
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  /* Dark centre for readability, transparent at edges to show pie colour */
+  background: radial-gradient(circle, rgba(10,18,30,0.82) 55%, transparent 100%);
 }
 
 .goals-card-name {
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   font-weight: 700;
-  color: var(--cream);
+  color: #fff;
   text-align: center;
   line-height: 1.2;
   word-break: break-word;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
 }
 .goals-card-count {
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 800;
   color: #fff;
-  margin-top: 3px;
+  margin-top: 2px;
   letter-spacing: -0.02em;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
 }
 
-/* Touch active state */
-.goals-card:active .goals-card-inner { background: rgba(13,27,42,0.4); }
+.goals-card:active .goals-card-content { background: radial-gradient(circle, rgba(10,18,30,0.6) 55%, transparent 100%); }
 
 /* ─── CARD POPUP ──────────────────────────────────────────────── */
 .goals-popup-backdrop {
