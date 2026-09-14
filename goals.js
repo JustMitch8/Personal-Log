@@ -7,6 +7,9 @@ const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct
 const BLOCK_DAYS   = 28;
 
 function db(){return window._plSupabase;}
+
+// Block navigation offset (0 = current, -1 = previous, etc.)
+let _blockOffset = 0;
 function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r;}
 function toISO(d){const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;}
 function fmtShort(d){return `${String(d.getDate()).padStart(2,'0')}-${MONTHS_SHORT[d.getMonth()]}`;}
@@ -47,12 +50,12 @@ function getPrevBlock(blockStart){
 }
 
 // ── Entry point ────────────────────────────────────────────────────
-window.openGoals = async function(){
+window.openGoals = async function(offset){
   const content=document.getElementById('dashboard-content');
   content.innerHTML='<div class="dash-loading">Loading goals\u2026</div>';
   try{
     const {people,encounters,participants}=await fetchData();
-    const analytics=computeGoals(people,encounters,participants);
+    const analytics=computeGoals(people,encounters,participants,_blockOffset);
     renderGoals(analytics,people,encounters,participants);
   }catch(e){
     content.innerHTML=`<div class="dash-loading dash-error">Failed to load: ${esc(e.message)}</div>`;
@@ -70,9 +73,15 @@ async function fetchData(){
 }
 
 // ── Analytics ──────────────────────────────────────────────────────
-function computeGoals(people,encounters,participants){
-  const today=new Date();today.setHours(0,0,0,0);
-  const block=getCurrentBlock(today);
+function computeGoals(people,encounters,participants,blockOffset){
+  const realToday=new Date();realToday.setHours(0,0,0,0);
+  // Apply block offset: shift today back by offset*28 days to navigate blocks
+  const offsetDays=(blockOffset||0)*BLOCK_DAYS;
+  const today=addDays(realToday,-offsetDays*-1); // offset is negative for past
+  // Recompute: negative offset = past blocks
+  const shiftedToday=addDays(realToday,-(Math.abs(blockOffset||0)*BLOCK_DAYS));
+  const block=getCurrentBlock(blockOffset<=0?shiftedToday:realToday);
+  const isCurrentBlock=(blockOffset||0)===0;
   const prev=getPrevBlock(block.blockStart);
 
   const encPartsMap={},personEncsMap={};
@@ -126,7 +135,7 @@ function computeGoals(people,encounters,participants){
   // Unique people target: count of people with target>=1
   const uniqueTarget=peopleWithInterval.filter(p=>(personBlockTarget(p)||0)>=1).length;
   // Encounter target: approximate from activity (1 person per encounter avg as baseline)
-  const encTarget=activityTarget;
+  const encTarget=12; // hardcoded: 3 encounters/week × 4 weeks
 
   // Day progress
   const dayElapsed=Math.round((today-block.blockStart)/86400000)+1;
@@ -192,6 +201,7 @@ function computeGoals(people,encounters,participants){
 
   return {
     today,block,prev,blockPct,dayElapsed,dayTotal,
+    isCurrentBlock,
     actActivity,actUnique,actEncs,
     activityTarget,uniqueTarget,encTarget,
     prevActivity,prevUnique,prevEncCount,
@@ -245,12 +255,22 @@ function renderGoals(a,people,encounters,participants){
   content.innerHTML=`
     <!-- Block progress -->
     <div class="section" style="padding:1rem 1.2rem 0">
-      <div class="goals-block-header">
-        <span class="goals-block-label">Block ${a.block.blockNum} &nbsp;·&nbsp; ${fmtShort(a.block.blockStart)} – ${fmtShort(a.block.blockEnd)}</span>
-        <span class="goals-block-pct">${a.blockPct}%</span>
+      <div class="goals-block-nav">
+        <button class="goals-nav-btn" id="goals-prev-btn" title="Previous block">&#x276E;</button>
+        <div class="goals-block-center">
+          <span class="goals-block-label">Block ${a.block.blockNum} &nbsp;·&nbsp; ${fmtShort(a.block.blockStart)} – ${fmtShort(a.block.blockEnd)}</span>
+          <span class="goals-block-pct">${a.actActivity} / ${a.activityTarget}</span>
+        </div>
+        <div class="goals-nav-right">
+          <button class="goals-nav-btn${a.isCurrentBlock?'' : ''}" id="goals-next-btn" title="Next block" ${a.isCurrentBlock?'disabled':''}>&#x276F;</button>
+          <button class="goals-nav-btn" id="goals-cur-btn" title="Jump to current block" ${a.isCurrentBlock?'disabled':''}>&#x22D9;</button>
+        </div>
       </div>
-      <div class="goals-progress-bar"><div class="goals-progress-fill" style="width:${a.blockPct}%"></div></div>
-      <div class="goals-progress-meta"><span>${fmtShort(a.block.blockStart)}</span><span>${a.dayElapsed} of ${a.dayTotal} days</span><span>${fmtShort(a.block.blockEnd)}</span></div>
+      <div class="goals-progress-bar">
+        <div class="goals-progress-fill" style="width:${Math.round((a.actActivity/Math.max(a.activityTarget,1))*100)}%"></div>
+        <div class="goals-progress-pace-marker" style="left:${a.blockPct}%"></div>
+      </div>
+      <div class="goals-progress-meta"><span>${fmtShort(a.block.blockStart)}</span><span>${a.dayElapsed} of ${a.dayTotal} days · ${a.blockPct}% elapsed</span><span>${fmtShort(a.block.blockEnd)}</span></div>
     </div>
 
     <!-- KPIs -->
@@ -267,8 +287,8 @@ function renderGoals(a,people,encounters,participants){
     </div>
 
     <!-- KPI selector + Pace chart -->
-    <div class="section" style="padding:0.8rem 1.2rem 0">
-      <div class="goals-chart-header">
+    <div class="section" style="padding:0.8rem 1.2rem 0;overflow:visible">
+      <div class="goals-chart-header" style="position:relative;z-index:10">
         <span class="dash-section-label" style="font-size:0.72rem">Pace</span>
         <div class="goals-kpi-sel">
           <button class="goals-kpi-btn${_currentKPI==='activity'?' active':''}" data-kpi="activity">Activity</button>
@@ -319,6 +339,22 @@ function renderGoals(a,people,encounters,participants){
     });
   });
 
+  // Block navigation buttons
+  document.getElementById('goals-prev-btn')?.addEventListener('click',()=>{
+    _blockOffset = (_blockOffset||0) - 1;
+    window.openGoals(_blockOffset);
+  });
+  document.getElementById('goals-next-btn')?.addEventListener('click',()=>{
+    if((_blockOffset||0) < 0){
+      _blockOffset = (_blockOffset||0) + 1;
+      window.openGoals(_blockOffset);
+    }
+  });
+  document.getElementById('goals-cur-btn')?.addEventListener('click',()=>{
+    _blockOffset = 0;
+    window.openGoals(0);
+  });
+
   // Popup close
   document.getElementById('goals-card-popup')?.addEventListener('click',e=>{
     if(e.target===document.getElementById('goals-card-popup')){
@@ -340,29 +376,43 @@ function renderPaceChart(a,kpi){
   const totalDaysLeft=Math.max(a.dayTotal-a.dayElapsed,0);
 
   // Max Y — at least weeklyTarget so target line is always visible
-  const maxVal=Math.max(...a.weeks.map(w=>w.actual[kpi]),weeklyTarget*1.5,1);
+  // maxVal must accommodate the full bar height (actual + silhouette) and target line
+  // Use weeklyTarget * 1.4 as a safe upper bound ensuring target line sits within chart
+  const maxVal=Math.max(weeklyTarget*1.4,...a.weeks.map(w=>w.actual[kpi]),1);
 
   const targetPx=Math.round((weeklyTarget/maxVal)*CHART_H);
+
+  // Silhouette equation satisfying 3 constraints:
+  // 1. sum of all silhouettes = remaining target R
+  // 2. all future weeks same silhouette S
+  // 3. current week silhouette = (daysLeftInWk1/7) * S
+  // => S * (daysLeftInWk1/7 + futureWeeks) = R
+  // => S = R / (daysLeftInWk1/7 + futureWeeks)
+  const currentWeek=a.weeks.find(w=>w.isCurrent);
+  const daysLeftInCurrentWk=currentWeek?Math.max(7-currentWeek.daysElapsedInWeek+1,0):0;
+  const futureWeekCount=a.weeks.filter(w=>!w.isCurrent&&!w.isPast).length;
+  const denominator=(daysLeftInCurrentWk/7)+futureWeekCount;
+  const S=denominator>0?remaining/denominator:0; // full-week silhouette
+  const currentWkSil=(daysLeftInCurrentWk/7)*S;
 
   const bars=a.weeks.map((w,i)=>{
     const actual=w.actual[kpi];
     const actualPx=Math.round((actual/maxVal)*CHART_H);
 
-    // Silhouette: distribute remaining across remaining days
-    let silPx=0;
-    if(w.isCurrent){
-      const daysLeftInWeek=Math.max(7-w.daysElapsedInWeek,0);
-      const sil=totalDaysLeft>0?(remaining/totalDaysLeft)*daysLeftInWeek:0;
-      silPx=Math.round((sil/maxVal)*CHART_H);
-    } else if(!w.isPast){
-      const sil=totalDaysLeft>0?(remaining/totalDaysLeft)*7:0;
-      silPx=Math.round((sil/maxVal)*CHART_H);
-    }
+    // Silhouette sits BEHIND solid — total bar height = solid + sil
+    let sil=0;
+    if(w.isCurrent) sil=currentWkSil;
+    else if(!w.isPast) sil=S;
+    const silPx=Math.round((sil/maxVal)*CHART_H);
+    const totalBarPx=actualPx+silPx;
 
     return `<div class="goals-pace-col${w.isCurrent?' goals-pace-current':''}">
-      <div style="position:relative;height:${CHART_H}px;display:flex;flex-direction:column;justify-content:flex-end;background:var(--navy);border-radius:3px 3px 0 0;overflow:visible">
-        ${silPx>0?`<div style="position:absolute;bottom:${actualPx}px;left:0;right:0;height:${silPx}px;background:rgba(212,168,85,0.18);border:1px dashed rgba(212,168,85,0.4);border-radius:2px 2px 0 0;box-sizing:border-box"></div>`:''}
-        <div style="height:${actualPx}px;background:var(--amber);border-radius:2px 2px 0 0;min-height:${actual>0?2:0}px;position:relative;z-index:1"></div>
+      <div style="position:relative;height:${CHART_H}px;display:flex;flex-direction:column;justify-content:flex-end;overflow:visible">
+        <!-- Total bar: silhouette behind solid -->
+        ${totalBarPx>0?`<div style="position:absolute;bottom:0;left:0;right:0;height:${totalBarPx}px;background:rgba(212,168,85,0.18);border:1px dashed rgba(212,168,85,0.35);border-radius:3px 3px 0 0;box-sizing:border-box"></div>`:''}
+        <!-- Solid actual on top -->
+        <div style="position:absolute;bottom:0;left:0;right:0;height:${actualPx}px;background:var(--amber);border-radius:3px 3px 0 0;z-index:1;min-height:${actual>0?2:0}px"></div>
+        <!-- Target avg line -->
         <div style="position:absolute;left:-2px;right:-2px;bottom:${targetPx}px;height:1.5px;background:#40916C;z-index:2"></div>
       </div>
       <div class="goals-pace-label">${w.label}${w.isCurrent?' ◀':''}</div>
@@ -458,14 +508,14 @@ function renderPersonCards(a){
     // Build a multi-stop conic for smooth colour transition
     // We approximate with 3 stops: start colour at 0, transition colour at midpoint, end colour at fillDeg
     const cardPieBg=target===0
-      ?'conic-gradient(#2D9E5F 360deg, #0D1B2A 360deg)' // full green = nothing due
+      ?'conic-gradient(from -90deg, #2D9E5F 360deg, #0D1B2A 360deg)'
       :fillDeg===0
         ?'#0D1B2A'
         :buildConicGradient(ratio,fillDeg);
 
     // Border ring: % through block (amber fill, dark unfilled)
     const borderDeg=Math.round(blockPct*360);
-    const borderBg=`conic-gradient(var(--amber) ${borderDeg}deg, var(--navy-light) ${borderDeg}deg)`;
+    const borderBg=`conic-gradient(from -90deg, var(--amber) ${borderDeg}deg, var(--navy-light) ${borderDeg}deg)`;
 
     return `<div class="goals-card" data-idx="${i}">
       <div class="goals-card-border-ring" style="background:${borderBg}"></div>
