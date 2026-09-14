@@ -416,3 +416,21 @@
   z-index: 2;
   opacity: 0.8;
 }
+
+/* ─── PACE CHART LABEL ROW ────────────────────────────────────── */
+.goals-pace-label-row {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+.goals-pace-lbl-cell {
+  flex: 1;
+  font-size: 0.55rem;
+  color: var(--fog);
+  text-align: center;
+  white-space: nowrap;
+}
+.goals-pace-lbl-cell.goals-pace-current {
+  color: var(--amber);
+  font-weight: 700;
+}

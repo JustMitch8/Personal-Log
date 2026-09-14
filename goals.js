@@ -75,13 +75,14 @@ async function fetchData(){
 // ── Analytics ──────────────────────────────────────────────────────
 function computeGoals(people,encounters,participants,blockOffset){
   const realToday=new Date();realToday.setHours(0,0,0,0);
-  // Apply block offset: shift today back by offset*28 days to navigate blocks
-  const offsetDays=(blockOffset||0)*BLOCK_DAYS;
-  const today=addDays(realToday,-offsetDays*-1); // offset is negative for past
-  // Recompute: negative offset = past blocks
-  const shiftedToday=addDays(realToday,-(Math.abs(blockOffset||0)*BLOCK_DAYS));
-  const block=getCurrentBlock(blockOffset<=0?shiftedToday:realToday);
   const isCurrentBlock=(blockOffset||0)===0;
+  // To find the correct past block, shift a reference date back by offset*28 days
+  // then find the block that date falls in
+  const refDate=addDays(realToday,(blockOffset||0)*BLOCK_DAYS);
+  const block=getCurrentBlock(refDate);
+  // For past blocks, "today" within that block = the block's last day (blockEnd)
+  // For current block, "today" = real today
+  const today=isCurrentBlock?realToday:block.blockEnd;
   const prev=getPrevBlock(block.blockStart);
 
   const encPartsMap={},personEncsMap={};
@@ -376,9 +377,23 @@ function renderPaceChart(a,kpi){
   const totalDaysLeft=Math.max(a.dayTotal-a.dayElapsed,0);
 
   // Max Y — at least weeklyTarget so target line is always visible
-  // maxVal must accommodate the full bar height (actual + silhouette) and target line
-  // Use weeklyTarget * 1.4 as a safe upper bound ensuring target line sits within chart
-  const maxVal=Math.max(weeklyTarget*1.4,...a.weeks.map(w=>w.actual[kpi]),1);
+  // Compute silhouette sizes first to get true max bar height
+  const _curWk=a.weeks.find(w=>w.isCurrent);
+  const _daysLeftCur=_curWk?Math.max(7-_curWk.daysElapsedInWeek+1,0):0;
+  const _futureWks=a.weeks.filter(w=>!w.isCurrent&&!w.isPast).length;
+  const _denom=(_daysLeftCur/7)+_futureWks;
+  const _S=_denom>0?remaining/_denom:0;
+  const _curSil=(_daysLeftCur/7)*_S;
+
+  // maxVal = tallest bar (actual + its silhouette), or target line, whichever is biggest
+  const maxBarHeights=a.weeks.map(w=>{
+    const act=w.actual[kpi];
+    let sil=0;
+    if(w.isCurrent) sil=_curSil;
+    else if(!w.isPast) sil=_S;
+    return act+sil;
+  });
+  const maxVal=Math.max(...maxBarHeights, weeklyTarget*1.1, 1);
 
   const targetPx=Math.round((weeklyTarget/maxVal)*CHART_H);
 
@@ -408,23 +423,26 @@ function renderPaceChart(a,kpi){
 
     return `<div class="goals-pace-col${w.isCurrent?' goals-pace-current':''}">
       <div style="position:relative;height:${CHART_H}px;display:flex;flex-direction:column;justify-content:flex-end;overflow:visible">
-        <!-- Total bar: silhouette behind solid -->
+        <!-- Silhouette behind solid -->
         ${totalBarPx>0?`<div style="position:absolute;bottom:0;left:0;right:0;height:${totalBarPx}px;background:rgba(212,168,85,0.18);border:1px dashed rgba(212,168,85,0.35);border-radius:3px 3px 0 0;box-sizing:border-box"></div>`:''}
         <!-- Solid actual on top -->
         <div style="position:absolute;bottom:0;left:0;right:0;height:${actualPx}px;background:var(--amber);border-radius:3px 3px 0 0;z-index:1;min-height:${actual>0?2:0}px"></div>
         <!-- Target avg line -->
         <div style="position:absolute;left:-2px;right:-2px;bottom:${targetPx}px;height:1.5px;background:#40916C;z-index:2"></div>
       </div>
-      <div class="goals-pace-label">${w.label}${w.isCurrent?' ◀':''}</div>
     </div>`;
   }).join('');
 
   const yMid=Math.round(maxVal/2);
+  // Build label row separately
+  const labelRow=a.weeks.map(w=>`<div class="goals-pace-lbl-cell${w.isCurrent?' goals-pace-current':''}">${w.label}${w.isCurrent?' ◀':''}</div>`).join('');
+
   el.innerHTML=`<div class="goals-pace-wrap">
     <div class="dash-y-axis" style="height:${CHART_H}px"><span>${Math.round(maxVal)}</span><span>${yMid}</span><span>0</span></div>
     <div style="flex:1;min-width:0">
       <div class="goals-pace-cols" style="height:${CHART_H}px">${bars}</div>
       <div class="dash-x-axis-line"></div>
+      <div class="goals-pace-label-row">${labelRow}</div>
     </div>
   </div>
   <div class="goals-pace-legend">
@@ -503,19 +521,18 @@ function renderPersonCards(a){
     const ratio=target>0?actual/target:(target===0?1:0);
     // Fill degrees — capped at 360 for display
     const fillDeg=Math.min(ratio,1)*360;
-    // Colour: 0→red, 0.5→orange, 1→green, >1→purple
-    const fillColor=getCardColor(ratio);
-    // Build a multi-stop conic for smooth colour transition
-    // We approximate with 3 stops: start colour at 0, transition colour at midpoint, end colour at fillDeg
+    // Colour based on delta between completion and block elapsed
+    const blockPctRatio=a.blockPct/100;
+    const fillColor=getCardColor(ratio,blockPctRatio);
     const cardPieBg=target===0
-      ?'conic-gradient(from -90deg, #2D9E5F 360deg, #0D1B2A 360deg)'
+      ?'conic-gradient(from 0deg, #2D9E5F 360deg, #0D1B2A 360deg)'
       :fillDeg===0
         ?'#0D1B2A'
-        :buildConicGradient(ratio,fillDeg);
+        :buildConicGradient(ratio,fillDeg,blockPctRatio);
 
     // Border ring: % through block (amber fill, dark unfilled)
     const borderDeg=Math.round(blockPct*360);
-    const borderBg=`conic-gradient(from -90deg, var(--amber) ${borderDeg}deg, var(--navy-light) ${borderDeg}deg)`;
+    const borderBg=`conic-gradient(from 0deg, var(--amber) ${borderDeg}deg, var(--navy-light) ${borderDeg}deg)`;
 
     return `<div class="goals-card" data-idx="${i}">
       <div class="goals-card-border-ring" style="background:${borderBg}"></div>
@@ -543,39 +560,42 @@ function renderPersonCards(a){
   });
 }
 
-// Get card fill colour: 0→red, 0.5→orange, 1→green, >1→purple
-function getCardColor(ratio){
-  if(ratio<=0) return '#C0392B';
-  if(ratio<0.5){
-    // red→orange
-    const t=ratio/0.5;
-    return `rgb(${Math.round(192+43*t)},${Math.round(57+64*t)},${Math.round(43-43*t)})`;
+// Get card colour based on delta between goal completion % and block elapsed %
+// delta = completionPct - blockPct
+// delta >= 0    → green (on or ahead of pace) → purple if significantly ahead
+// delta = -0.25 → amber (25% behind pace)
+// delta < -0.25 → red (more than 25% behind pace)
+// Gradient is continuous, no instant colour changes
+function getCardColor(completionRatio, blockPct) {
+  const completionPct = Math.min(completionRatio, 1); // cap at 100% for colour calc
+  const delta = completionPct - blockPct; // positive = ahead, negative = behind
+
+  if (delta >= 0) {
+    // On pace or ahead: green→purple as delta increases (0→+0.5)
+    const t = Math.min(delta / 0.5, 1);
+    return `rgb(${Math.round(45+(128-45)*t)},${Math.round(158-(158)*t)},${Math.round(79+(128-79)*t)})`;
   }
-  if(ratio<1){
-    // orange→green
-    const t=(ratio-0.5)/0.5;
-    return `rgb(${Math.round(235-190*t)},${Math.round(121+(-121+158)*t)},${Math.round(0+79*t)})`;
+  if (delta >= -0.25) {
+    // Slightly behind: green→amber (delta 0 to -0.25)
+    const t = Math.abs(delta) / 0.25;
+    return `rgb(${Math.round(45+(212-45)*t)},${Math.round(158+(168-158)*t)},${Math.round(79+(85-79)*t)})`;
   }
-  if(ratio>=1){
-    // green→purple (capped visual at 2×)
-    const t=Math.min(ratio-1,1);
-    return `rgb(${Math.round(45+83*t)},${Math.round(158-158*t)},${Math.round(79+49*t)})`;
-  }
-  return '#2D9E5F';
+  // More than 25% behind: amber→red (delta -0.25 to -0.75)
+  const t = Math.min((Math.abs(delta)-0.25)/0.5, 1);
+  return `rgb(${Math.round(212+(192-212)*t)},${Math.round(168+(57-168)*t)},${Math.round(85+(43-85)*t)})`;
 }
 
-// Build a smooth conic gradient approximating the red→orange→green→purple arc
-function buildConicGradient(ratio,fillDeg){
-  // Sample colours at key angle points along the fill arc
+// Build a smooth conic gradient approximating the colour arc
+function buildConicGradient(ratio,fillDeg,blockPct){
   const stops=[];
   const steps=Math.max(Math.ceil(fillDeg/30),2);
   for(let i=0;i<=steps;i++){
     const deg=Math.round((i/steps)*fillDeg);
-    const r=i/steps*ratio; // ratio at this point along arc
-    stops.push(`${getCardColor(r)} ${deg}deg`);
+    const r=i/steps*ratio;
+    stops.push(`${getCardColor(r,blockPct)} ${deg}deg`);
   }
   stops.push(`#0D1B2A ${fillDeg}deg`);
-  return `conic-gradient(from -90deg, ${stops.join(', ')})`;
+  return `conic-gradient(from 0deg, ${stops.join(', ')})`;
 }
 
 function pctToColor(pct){
@@ -617,7 +637,8 @@ function openCardPopup(idx,a,cardEl){
     :`<div class="goals-popup-empty">No encounters logged yet this block.</div>`;
 
   const pct=target>0?Math.round((actual/target)*100):100;
-  const fillColor=pctToColor(actual/(target||1));
+  const blockPctRatio=a.blockPct/100;
+  const fillColor=getCardColor(actual/(target||1),blockPctRatio);
   const fillDeg=Math.min(actual/(target||1),1)*360;
 
   document.getElementById('goals-popup-inner').innerHTML=`
