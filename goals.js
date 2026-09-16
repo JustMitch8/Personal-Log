@@ -437,13 +437,15 @@ function renderPaceChart(a,kpi){
   // Build label row separately
   const labelRow=a.weeks.map(w=>`<div class="goals-pace-lbl-cell${w.isCurrent?' goals-pace-current':''}">${w.label}${w.isCurrent?' ◀':''}</div>`).join('');
 
-  // padding-bottom on y-axis accounts for the x-axis line (1px) + its margin-top (2px)
-  // so the "0" label bottom-aligns with the x-axis line rather than floating above it
   el.innerHTML=`<div class="goals-pace-wrap">
-    <div class="dash-y-axis" style="height:${CHART_H}px;padding-bottom:3px"><span>${Math.round(maxVal)}</span><span>${yMid}</span><span>0</span></div>
+    <div style="display:flex;flex-direction:column;justify-content:space-between;height:${CHART_H}px;width:24px;flex-shrink:0;align-items:flex-end;padding-right:4px">
+      <span style="font-size:0.55rem;color:var(--slate);line-height:1">${Math.round(maxVal)}</span>
+      <span style="font-size:0.55rem;color:var(--slate);line-height:1">${yMid}</span>
+      <span style="font-size:0.55rem;color:var(--slate);line-height:1">0</span>
+    </div>
     <div style="flex:1;min-width:0">
       <div class="goals-pace-cols" style="height:${CHART_H}px">${bars}</div>
-      <div class="dash-x-axis-line"></div>
+      <div class="dash-x-axis-line" style="margin-top:0"></div>
       <div class="goals-pace-label-row">${labelRow}</div>
     </div>
   </div>
