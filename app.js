@@ -10,6 +10,16 @@ let selectedPeople  = [];
 let searchHighlight = -1;
 let currentType     = null;
 
+// ── Bayesian suggestion state ───────────────────────────────────────
+// baseCounts[personId]        = appearances in last 4 weeks (qualifying encs only)
+// totalBaseAppearances        = sum of all base appearances
+// coOccurrences[pidA][pidB]   = times A and B appeared in same encounter (12 months)
+// appearances12m[personId]    = total qualifying appearances in last 12 months
+let baseCounts         = {};
+let totalBaseAppearances = 0;
+let coOccurrences      = {};
+let appearances12m     = {};
+
 // People screen state
 let editingPerson  = null;
 let unlockedFields = new Set();
@@ -112,6 +122,7 @@ async function handleLogin() {
 async function handleSignOut() {
   await supabase.auth.signOut();
   allPeople=[]; selectedPeople=[]; frequentFriends=[]; currentUserId=null;
+  baseCounts={}; totalBaseAppearances=0; coOccurrences={}; appearances12m={};
   document.getElementById('auth-email').value='';
   document.getElementById('auth-password').value='';
   hideAuthError();
@@ -135,35 +146,39 @@ async function loadData() {
     .from('people').select('id,name,contactintervaldays').order('name');
   if (pe||!people) { renderFrequentFriends(); return; }
 
-  // Filter excluded types in JS — PostgREST chokes on hyphens in .not().in()
   const EXCLUDED=new Set(['message','birthday-acknowledgment']);
-  const cutoffDate=new Date();
-  cutoffDate.setMonth(cutoffDate.getMonth()-3);
-  const cutoff=cutoffDate.toISOString().split('T')[0];
-
-  const {data:recentRaw}=await supabase
-    .from('encounters').select('id,date,type').gte('date',cutoff);
-  const encounters=(recentRaw||[]).filter(e=>!EXCLUDED.has(e.type));
-
-  const {data:allRaw}=await supabase
-    .from('encounters').select('id,date,type');
-  const allEncounters=(allRaw||[]).filter(e=>!EXCLUDED.has(e.type));
-
-  const {data:allParticipants}=await supabase
-    .from('encounter_participants').select('encounterid,personid');
-
   const today=new Date(); today.setHours(0,0,0,0);
 
-  // Build lastDate map across all time (for badges)
+  // Date cutoffs
+  const cutoff12m=new Date(today); cutoff12m.setFullYear(cutoff12m.getFullYear()-1);
+  const cutoff4w=new Date(today);  cutoff4w.setDate(cutoff4w.getDate()-28);
+  const cutoff12mISO=cutoff12m.toISOString().split('T')[0];
+  const cutoff4wISO=cutoff4w.toISOString().split('T')[0];
+
+  // Fetch 12 months of encounters + all participants in parallel
+  // Also fetch all encounters (any date) for badge last-seen calculation
+  const [
+    {data:enc12mRaw},
+    {data:allEncRaw},
+    {data:allParticipants},
+  ] = await Promise.all([
+    supabase.from('encounters').select('id,date,type').gte('date',cutoff12mISO),
+    supabase.from('encounters').select('id,date,type'),
+    supabase.from('encounter_participants').select('encounterid,personid'),
+  ]);
+
+  const enc12m=(enc12mRaw||[]).filter(e=>!EXCLUDED.has(e.type));
+  const allEncounters=(allEncRaw||[]).filter(e=>!EXCLUDED.has(e.type));
+  const participants=allParticipants||[];
+
+  // ── Build lastDate map across all time (for badges) ──────────────
   const lastDateMap={};
-  if (allEncounters && allParticipants) {
-    const allDateMap=Object.fromEntries(allEncounters.map(e=>[e.id,e.date]));
-    allParticipants.forEach(({encounterid,personid})=>{
-      const date=allDateMap[encounterid];
-      if (!date) return;
-      if (!lastDateMap[personid]||date>lastDateMap[personid]) lastDateMap[personid]=date;
-    });
-  }
+  const allDateMap=Object.fromEntries(allEncounters.map(e=>[e.id,e.date]));
+  participants.forEach(({encounterid,personid})=>{
+    const date=allDateMap[encounterid];
+    if (!date) return;
+    if (!lastDateMap[personid]||date>lastDateMap[personid]) lastDateMap[personid]=date;
+  });
 
   // Attach daysSince to each person
   allPeople=people.map(p=>{
@@ -176,26 +191,95 @@ async function loadData() {
     return {...p,daysSince};
   });
 
-  // Compute frequentFriends from last 3 months
-  if (encounters && encounters.length && allParticipants) {
-    const recentIds=new Set(encounters.map(e=>e.id));
-    const recentDateMap=Object.fromEntries(encounters.map(e=>[e.id,e.date]));
-    const stats={};
-    allParticipants.forEach(({encounterid,personid})=>{
-      if (!recentIds.has(encounterid)) return;
-      if (!stats[personid]) stats[personid]={count:0};
-      stats[personid].count++;
-    });
-    frequentFriends=Object.entries(stats)
-      .sort((a,b)=>b[1].count-a[1].count).slice(0,8)
-      .map(([pid])=>allPeople.find(p=>p.id===pid))
-      .filter(Boolean);
-  } else {
-    frequentFriends=[];
-  }
+  // ── Build Bayesian in-memory structures ───────────────────────────
 
+  // Map encounterid → [personid, …] for 12-month encounters only
+  const enc12mIds=new Set(enc12m.map(e=>e.id));
+  const enc4wIds=new Set(enc12m.filter(e=>e.date>=cutoff4wISO).map(e=>e.id));
+
+  // Group participants by encounter for the 12m window
+  const partsByEnc={};  // encounterid → [personid]
+  participants.forEach(({encounterid,personid})=>{
+    if (!enc12mIds.has(encounterid)) return;
+    if (!partsByEnc[encounterid]) partsByEnc[encounterid]=[];
+    partsByEnc[encounterid].push(personid);
+  });
+
+  // Base counts: appearances in last 4 weeks (qualifying encounters)
+  baseCounts={};
+  totalBaseAppearances=0;
+  participants.forEach(({encounterid,personid})=>{
+    if (!enc4wIds.has(encounterid)) return;
+    baseCounts[personid]=(baseCounts[personid]||0)+1;
+    totalBaseAppearances++;
+  });
+
+  // 12-month appearances (denominator for conditionals)
+  appearances12m={};
+  participants.forEach(({encounterid,personid})=>{
+    if (!enc12mIds.has(encounterid)) return;
+    appearances12m[personid]=(appearances12m[personid]||0)+1;
+  });
+
+  // Co-occurrence matrix: for each encounter, add all pairs
+  coOccurrences={};
+  Object.values(partsByEnc).forEach(pids=>{
+    for (let i=0;i<pids.length;i++) {
+      for (let j=0;j<pids.length;j++) {
+        if (i===j) continue;
+        const a=pids[i], b=pids[j];
+        if (!coOccurrences[a]) coOccurrences[a]={};
+        coOccurrences[a][b]=(coOccurrences[a][b]||0)+1;
+      }
+    }
+  });
+
+  // ── Initial top-8 ─────────────────────────────────────────────────
   renderFrequentFriends();
   renderChips(); // refresh chips with updated badge data
+}
+
+// ══ Bayesian top-8 ═════════════════════════════════════════════════
+// Returns up to 8 people ranked by posterior probability given current selection.
+// Pure function of (selectedIds, allPeople, baseCounts, coOccurrences, appearances12m).
+function getTop8(selectedIds) {
+  const N=allPeople.length; // total people count (for Laplace smoothing denominator)
+  const excluded=new Set(selectedIds);
+
+  // Candidates: everyone not already selected
+  const candidates=allPeople.filter(p=>!excluded.has(p.id));
+  if (!candidates.length) return [];
+
+  // ── Base probability P(Y) with Laplace smoothing ──────────────────
+  // P(Y) = (baseCounts[Y] + 1) / (totalBaseAppearances + N)
+  const baseDenom=totalBaseAppearances+N;
+
+  // ── Score each candidate ──────────────────────────────────────────
+  const scored=candidates.map(p=>{
+    const baseProb=((baseCounts[p.id]||0)+1)/baseDenom;
+
+    let score=baseProb;
+
+    if (selectedIds.length>0) {
+      // Multiply a conditional factor for each already-selected person X:
+      //   P(Y|X) = (coOccurrences[X][Y] + 1) / (appearances12m[X] + N)
+      // Laplace smoothing: +1 numerator, +N denominator
+      let conditionalProduct=1;
+      for (const xid of selectedIds) {
+        const coCount=(coOccurrences[xid]&&coOccurrences[xid][p.id])||0;
+        const xAppearances=(appearances12m[xid]||0);
+        const condProb=(coCount+1)/(xAppearances+N);
+        conditionalProduct*=condProb;
+      }
+      score=baseProb*conditionalProduct;
+    }
+
+    return {person:p, score};
+  });
+
+  // Sort descending by score, take top 8
+  scored.sort((a,b)=>b.score-a.score);
+  return scored.slice(0,8).map(s=>s.person);
 }
 
 // ══ Frequent Friends ═══════════════════════════════════════════════
@@ -203,23 +287,31 @@ function renderFrequentFriends() {
   const section=document.getElementById('frequent-section');
   const grid=document.getElementById('frequent-grid');
   const title=document.getElementById('frequent-title');
-  if (!frequentFriends.length) { section.style.display='none'; return; }
-  title.textContent=SECTION_TITLES[Math.floor(Math.random()*SECTION_TITLES.length)];
+
+  const selectedIds=selectedPeople.map(p=>p.id);
+  const top8=getTop8(selectedIds);
+
+  if (!top8.length) { section.style.display='none'; return; }
+
+  // Only randomise the title on initial load (no selection yet), keep stable otherwise
+  if (!selectedIds.length) {
+    title.textContent=SECTION_TITLES[Math.floor(Math.random()*SECTION_TITLES.length)];
+  }
   section.style.display='block';
-  grid.innerHTML=frequentFriends.map(f=>{
-    const sel=selectedPeople.find(p=>p.id===f.id);
+
+  grid.innerHTML=top8.map(f=>{
     const badge=daysBadge(f.daysSince,f.contactintervaldays);
-    return `<button class="ff-card${sel?' ff-selected':''}" data-id="${f.id}" data-name="${esc(f.name)}">
+    return `<button class="ff-card" data-id="${f.id}" data-name="${esc(f.name)}">
       <div class="ff-avatar">${initials(f.name)}</div>
       <div class="ff-name">${esc(f.name)}</div>
       ${badge?`<div class="ff-badge" style="background:${badge.color}">${badge.label}</div>`:''}
     </button>`;
   }).join('');
+
   grid.querySelectorAll('.ff-card').forEach(card=>{
     card.addEventListener('click',()=>{
-      const {id,name}=card.dataset;
-      if (selectedPeople.find(p=>p.id===id)) removePerson(id); else addPerson(id,name);
-      renderFrequentFriends();
+      addPerson(card.dataset.id, card.dataset.name);
+      // addPerson already calls renderFrequentFriends internally
     });
   });
 }
@@ -310,10 +402,15 @@ function scoreMatch(name,q) {
 // ══ Selected people (chips) ═════════════════════════════════════════
 function addPerson(id,name) {
   if (selectedPeople.find(p=>p.id===id)) { clearEncounterSearch(); return; }
-  selectedPeople.push({id,name}); clearEncounterSearch(); renderChips();
+  selectedPeople.push({id,name});
+  clearEncounterSearch();
+  renderChips();
+  renderFrequentFriends(); // recalc top-8 with new selection
 }
 function removePerson(id) {
-  selectedPeople=selectedPeople.filter(p=>p.id!==id); renderChips();
+  selectedPeople=selectedPeople.filter(p=>p.id!==id);
+  renderChips();
+  renderFrequentFriends(); // recalc top-8 with updated selection
 }
 function renderChips() {
   const wrap=document.getElementById('chips-wrap');
@@ -330,7 +427,8 @@ function renderChips() {
     </div>`;
   }).join('');
   wrap.querySelectorAll('.chip-remove').forEach(btn=>{
-    btn.addEventListener('click',()=>{ removePerson(btn.dataset.id); renderFrequentFriends(); });
+    // removePerson already calls renderFrequentFriends internally
+    btn.addEventListener('click',()=>removePerson(btn.dataset.id));
   });
 }
 function clearEncounterSearch() {

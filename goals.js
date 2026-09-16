@@ -437,8 +437,10 @@ function renderPaceChart(a,kpi){
   // Build label row separately
   const labelRow=a.weeks.map(w=>`<div class="goals-pace-lbl-cell${w.isCurrent?' goals-pace-current':''}">${w.label}${w.isCurrent?' ◀':''}</div>`).join('');
 
+  // padding-bottom on y-axis accounts for the x-axis line (1px) + its margin-top (2px)
+  // so the "0" label bottom-aligns with the x-axis line rather than floating above it
   el.innerHTML=`<div class="goals-pace-wrap">
-    <div class="dash-y-axis" style="height:${CHART_H}px"><span>${Math.round(maxVal)}</span><span>${yMid}</span><span>0</span></div>
+    <div class="dash-y-axis" style="height:${CHART_H}px;padding-bottom:3px"><span>${Math.round(maxVal)}</span><span>${yMid}</span><span>0</span></div>
     <div style="flex:1;min-width:0">
       <div class="goals-pace-cols" style="height:${CHART_H}px">${bars}</div>
       <div class="dash-x-axis-line"></div>
