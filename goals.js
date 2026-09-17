@@ -437,17 +437,15 @@ function renderPaceChart(a,kpi){
   // Build label row separately
   const labelRow=a.weeks.map(w=>`<div class="goals-pace-lbl-cell${w.isCurrent?' goals-pace-current':''}">${w.label}${w.isCurrent?' ◀':''}</div>`).join('');
 
-  el.innerHTML=`<div class="goals-pace-wrap">
-    <div style="display:flex;flex-direction:column;justify-content:space-between;height:${CHART_H}px;width:24px;flex-shrink:0;align-items:flex-end;padding-right:4px">
+  el.innerHTML=`<div style="position:relative;padding-left:28px">
+    <div style="position:absolute;left:0;top:0;height:${CHART_H}px;width:28px;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;padding-right:4px;box-sizing:border-box">
       <span style="font-size:0.55rem;color:var(--slate);line-height:1">${Math.round(maxVal)}</span>
       <span style="font-size:0.55rem;color:var(--slate);line-height:1">${yMid}</span>
       <span style="font-size:0.55rem;color:var(--slate);line-height:1">0</span>
     </div>
-    <div style="flex:1;min-width:0">
-      <div class="goals-pace-cols" style="height:${CHART_H}px">${bars}</div>
-      <div class="dash-x-axis-line" style="margin-top:0"></div>
-      <div class="goals-pace-label-row">${labelRow}</div>
-    </div>
+    <div class="goals-pace-cols" style="height:${CHART_H}px">${bars}</div>
+    <div class="dash-x-axis-line" style="margin-top:0"></div>
+    <div class="goals-pace-label-row">${labelRow}</div>
   </div>
   <div class="goals-pace-legend">
     <span><span class="goals-leg-box goals-leg-actual"></span>Actual</span>
